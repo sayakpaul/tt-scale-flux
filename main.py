@@ -19,7 +19,10 @@ MAX_SEED = np.iinfo(np.int32).max  # To generate random seeds
 MAX_NEW_TOKENS = 300  # Maximum number of tokens the verifier can use
 TOPK = 1  # Number of maximum noise(s) to start  the search with
 USE_LOW_GPU_VRAM = False  # When using a single GPU set this to True.
-
+CHOICE_OF_METRIC = "overall_score" # metric to use from the LLM grading.
+# available options: `accuracy_to_prompt`, `creativity_and_originality`, 
+# `visual_quality_and_realism`, `consistency_and_cohesion`, `emotional_or_thematic_resonance`,
+# `overall_score`.
 
 def sample(
     noises: dict[int, torch.Tensor],
@@ -78,7 +81,7 @@ def sample(
     # Convert raw output to JSON and attach noise
     outputs = [recover_json_from_output(o) for o in outputs]
     for o in outputs:
-        assert "overall_score" in o, o.keys()
+        assert CHOICE_OF_METRIC in o, o.keys()
 
     assert (
         len(outputs) == len(images_for_prompt)
@@ -92,9 +95,9 @@ def sample(
 
     # Sort by 'overall_score' descending and pick top-K
     for x in results:
-        assert "overall_score" in x, f"Expected all dicts in `results` to contain the `overall_score` key {x.keys()=}."
+        assert CHOICE_OF_METRIC in x, f"Expected all dicts in `results` to contain the `overall_score` key {x.keys()=}."
 
-    sorted_list = sorted(results, key=lambda x: x["overall_score"], reverse=True)
+    sorted_list = sorted(results, key=lambda x: x[CHOICE_OF_METRIC], reverse=True)
     topk_scores = sorted_list[:topk]
 
     # Update `starting_noises` with the new top-K so next iteration continues the search
@@ -102,15 +105,15 @@ def sample(
 
     # Print some debug info
     for ts in topk_scores:
-        print(f"Prompt='{prompt}' | Best seed={ts['seed']} | Score={ts['overall_score']}")
+        print(f"Prompt='{prompt}' | Best seed={ts['seed']} | Score={ts[CHOICE_OF_METRIC]}")
 
     datapoint = {
         "prompt": prompt,
         "search_round": search_round,
         "num_noises": len(noises),
         "best_noise_seed": list(new_noises.keys())[0],
-        "best_score": topk_scores[0]["overall_score"],
-        "choice_of_metric": "overall_score",
+        "best_score": topk_scores[0][CHOICE_OF_METRIC],
+        "choice_of_metric": CHOICE_OF_METRIC,
     }
     return filename, datapoint
 
