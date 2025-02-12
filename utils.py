@@ -63,18 +63,17 @@ def load_verifier_prompt(path: str) -> str:
 
 
 def prompt_to_filename(prompt, max_length=100):
-    """ChatGPT, thanks!"""
-    # Step 1: Normalize the string by replacing spaces and removing special characters
-    filename = re.sub(r"[^a-zA-Z0-9]", "_", prompt.strip())  # Replace non-alphanumeric with '_'
-    filename = re.sub(r"_+", "_", filename)  # Collapse multiple underscores
-    filename = f"prompt@{filename}"
+    """Thanks ChatGPT."""
+    filename = re.sub(r"[^a-zA-Z0-9]", "_", prompt.strip())
+    filename = re.sub(r"_+", "_", filename)
+    hash_digest = hashlib.sha256(prompt.encode()).hexdigest()[:8]
+    base_filename = f"prompt@{filename}_hash@{hash_digest}"
 
-    if len(filename) > max_length:
-        # Use a hash to ensure uniqueness if truncated
-        hash_digest = hashlib.sha256(prompt.encode()).hexdigest()[:8]
-        filename = f"{filename[:max_length - 9]}_hash@{hash_digest}"
+    if len(base_filename) > max_length:
+        base_length = max_length - len(hash_digest) - 7
+        base_filename = f"prompt@{filename[:base_length]}_hash@{hash_digest}"
 
-    return filename
+    return base_filename
 
 
 def recover_json_from_output(output: str):
