@@ -5,6 +5,10 @@ import re
 import hashlib
 from typing import Dict
 import json
+from typing import Union
+from PIL import Image
+import requests
+import io
 
 
 # Adapted from Diffusers.
@@ -74,6 +78,29 @@ def prompt_to_filename(prompt, max_length=100):
         base_filename = f"prompt@{filename[:base_length]}_hash@{hash_digest}"
 
     return base_filename
+
+
+def load_image(path_or_url: Union[str, Image.Image]) -> Image.Image:
+    """
+    Load an image from a local path or a URL and return a PIL Image object.
+
+    `path_or_url` is returned as is if it's an `Image` already.
+    """
+    if isinstance(path_or_url, Image.Image):
+        return path_or_url
+    elif path_or_url.startswith("http"):
+        response = requests.get(path_or_url, stream=True)
+        response.raise_for_status()
+        return Image.open(io.BytesIO(response.content))
+    return Image.open(path_or_url)
+
+
+def convert_to_bytes(path_or_url: Union[str, Image.Image]) -> bytes:
+    """Load an image from a path or URL and convert it to bytes."""
+    image = load_image(path_or_url).convert("RGB")
+    image_bytes_io = io.BytesIO()
+    image.save(image_bytes_io, format="PNG")
+    return image_bytes_io.getvalue()
 
 
 def recover_json_from_output(output: str):
