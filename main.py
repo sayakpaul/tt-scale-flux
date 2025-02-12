@@ -18,7 +18,7 @@ VAE_SCALE_FACTOR = 8
 MAX_SEED = np.iinfo(np.int32).max  # To generate random seeds
 MAX_NEW_TOKENS = 300  # Maximum number of tokens the verifier can use
 TOPK = 1  # Number of maximum noise(s) to start  the search with
-USE_LOW_GPU_VRAM = False  # When using a single GPU.
+USE_LOW_GPU_VRAM = False  # When using a single GPU set this to True.
 
 
 def sample(
