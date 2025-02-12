@@ -1,28 +1,36 @@
 import numpy as np
-import os
 import torch
 from diffusers import FluxPipeline
+from transformers import AutoModel, AutoTokenizer
 from tqdm.auto import tqdm
+import json
+from typing import Tuple
 
 from verifier import load_verifier, prepare_inputs, perform_inference
 from utils import load_verifier_prompt, prompt_to_filename, get_noises, recover_json_from_output
 
 # Constants
-NUM_NOISE_TO_SAMPLE = 16  # Size of initial noise pool
-NUM_PROMPTS = 2  # Number of prompts to use for experiments
+SEARCH_ROUNDS = 4  # Number of search rounds to scale the initial noise pool (2, 4, 8, 16, etc.)
+NUM_PROMPTS = 2  # Number of prompts to use for experiments. Change to "all" to use all prompts.
 HEIGHT, WIDTH = 1024, 1024
 NUM_LATENT_CHANNELS = 16
-SEED = 0  # initial seed to sample a number of seeds to initialize noise
 VAE_SCALE_FACTOR = 8
 MAX_SEED = np.iinfo(np.int32).max  # To generate random seeds
 MAX_NEW_TOKENS = 300  # Maximum number of tokens the verifier can use
-TOPK = 3  # Number of maximum noise(s) to start  the search with
+TOPK = 1  # Number of maximum noise(s) to start  the search with
+USE_LOW_GPU_VRAM = False  # When using a single GPU.
 
 
-import os
-
-
-def sample(noises, prompt, verifier_prompt, search_round, pipe, verifier, processor, topk):
+def sample(
+    noises: dict[int, torch.Tensor],
+    prompt: str,
+    verifier_prompt: str,
+    search_round: int,
+    pipe: FluxPipeline,
+    verifier: AutoModel,
+    processor: AutoTokenizer,
+    topk: int,
+) -> Tuple[str, dict]:
     images_for_prompt = []
     noises_used = []
     seeds_used = []
@@ -31,6 +39,8 @@ def sample(noises, prompt, verifier_prompt, search_round, pipe, verifier, proces
     for i, (seed, noise) in enumerate(noises.items()):
         filename = f"{prompt_filename}_i@{search_round}_s@{seed}.png"
 
+        if USE_LOW_GPU_VRAM:
+            pipe = pipe.to("cuda")
         image = pipe(
             prompt=prompt,
             latents=noise,
@@ -38,8 +48,10 @@ def sample(noises, prompt, verifier_prompt, search_round, pipe, verifier, proces
             width=WIDTH,
             max_sequence_length=512,
             guidance_scale=3.5,
-            num_inference_steps=50,  # consider decreasing for different search_rounds?
+            num_inference_steps=50,
         ).images[0]
+        if USE_LOW_GPU_VRAM:
+            pipe = pipe.to("cpu")
 
         images_for_prompt.append(image)
         noises_used.append(noise)
@@ -54,6 +66,7 @@ def sample(noises, prompt, verifier_prompt, search_round, pipe, verifier, proces
         images=images_for_prompt,
         prompts=[prompt] * len(images_for_prompt),
         processor=processor,
+        use_low_gpu_vram=USE_LOW_GPU_VRAM,
     )
     outputs = perform_inference(
         model=verifier,
@@ -91,7 +104,15 @@ def sample(noises, prompt, verifier_prompt, search_round, pipe, verifier, proces
     for ts in topk_scores:
         print(f"Prompt='{prompt}' | Best seed={ts['seed']} | Score={ts['overall_score']}")
 
-    return new_noises, search_round + 1
+    datapoint = {
+        "prompt": prompt,
+        "search_round": search_round,
+        "num_noises": len(noises),
+        "best_noise_seed": list(new_noises.keys())[0],
+        "best_score": topk_scores[0]["overall_score"],
+        "choice_of_metric": "overall_score",
+    }
+    return filename, datapoint
 
 
 @torch.no_grad()
@@ -104,49 +125,52 @@ def main():
       - Saves the top-K noise(s) and updates 'starting_noises' so the search continues.
       - Saves the final, best image for each prompt.
     """
-    # --- 1) Sample initial noises
-    starting_noises = get_noises(
-        seed=SEED,
-        max_seed=MAX_SEED,
-        height=HEIGHT,
-        width=WIDTH,
-        num_latent_channels=NUM_LATENT_CHANNELS,
-        vae_scale_factor=VAE_SCALE_FACTOR,
-        num_samples=NUM_NOISE_TO_SAMPLE,
-    )
-
-    # --- 2) Load system prompt and text prompts
+    # Load system prompt and text prompts
     verifier_prompt = load_verifier_prompt("verifier_prompt.txt")
     with open("prompts_open_image_pref_v1.txt", "r") as f:
-        prompts = [line.strip() for line in f.readlines()][:NUM_PROMPTS]
+        prompts = [line.strip() for line in f.readlines()]
+        if isinstance(NUM_PROMPTS, int):
+            prompts = prompts[:NUM_PROMPTS]
 
-    print(f"Using {len(prompts)} prompt(s) and {len(starting_noises)} initial noise(s).")
+    print(f"Using {len(prompts)} prompt(s).")
 
-    # --- 3) Set up the image-generation pipeline (on the first GPU)
-    pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16).to("cuda:0")
+    # Set up the image-generation pipeline (on the first GPU)
+    pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
+    if not USE_LOW_GPU_VRAM:
+        pipe = pipe.to("cuda:0")
     pipe.set_progress_bar_config(disable=True)
 
-    # --- 4) Load the verifier model and its processor (on the second GPU)
-    verifier, processor = load_verifier()
+    # Load the verifier model and its processor (on the second GPU)
+    verifier, processor = load_verifier(use_low_gpu_vram=USE_LOW_GPU_VRAM)
 
-    # --- 5) Main loop: Generate images, verify, and update noise set
-    for prompt in tqdm(prompts, desc="Sampling ..."):
-        noises = starting_noises
-        search_round = 0
-        topk = TOPK
-        while topk:
-            print(f"{len(noises)=}, {topk=}")
-            noises, search_round = sample(
+    # Main loop: Generate images, verify, and update noise set
+    for round in range(1, SEARCH_ROUNDS + 1):
+        print(f"Round: {round}")
+
+        num_noises_to_sample = 2**round
+        for prompt in tqdm(prompts, desc="Sampling ..."):
+            noises = get_noises(
+                max_seed=MAX_SEED,
+                height=HEIGHT,
+                width=WIDTH,
+                num_latent_channels=NUM_LATENT_CHANNELS,
+                vae_scale_factor=VAE_SCALE_FACTOR,
+                num_samples=num_noises_to_sample,
+            )
+
+            print(f"{len(noises)=}")
+            filename, datapoint_for_current_round = sample(
                 noises=noises,
                 prompt=prompt,
                 verifier_prompt=verifier_prompt,
-                search_round=search_round,
+                search_round=round,
                 pipe=pipe,
                 verifier=verifier,
                 processor=processor,
-                topk=topk,
+                topk=TOPK,
             )
-            topk -= 1
+            with open(filename.replace(".png", ".json"), "w") as f:
+                json.dump(datapoint_for_current_round, f)
 
 
 if __name__ == "__main__":

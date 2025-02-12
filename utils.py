@@ -27,7 +27,6 @@ def prepare_latents(
 
 
 def get_noises(
-    seed: int,
     max_seed: int,
     num_samples: int,
     height: int,
@@ -37,7 +36,7 @@ def get_noises(
     device="cuda",
     dtype=torch.bfloat16,
 ) -> Dict[int, torch.Tensor]:
-    seeds = torch.randint(0, high=max_seed, size=(num_samples,), generator=torch.manual_seed(seed))
+    seeds = torch.randint(0, high=max_seed, size=(num_samples,))
     print(f"{seeds=}")
     noises = {
         int(noise_seed): prepare_latents(

@@ -40,12 +40,17 @@ DEVICE_MAP = {
 }
 
 
-def load_verifier():
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        MODEL_ID,
-        torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
-    ).to("cuda:1")  # hard code for now.
+@torch.no_grad()
+def load_verifier(use_low_gpu_vram=False):
+    model_kwargs = {"pretrained_model_name_or_path": MODEL_ID, "torch_dtype": torch.bfloat16}
+    if not use_low_gpu_vram:
+        model_kwargs.update({"attn_implementation": "flash_attention_2"})
+    else:
+        model_kwargs.update({"device_map": "auto"})
+
+    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(**model_kwargs)
+    if not use_low_gpu_vram:
+        model = model.to("cuda:1")  # hard code for now.
     processor = AutoProcessor.from_pretrained(MODEL_ID)
     return model, processor
 
@@ -62,7 +67,7 @@ def prepare_conversations(system_prompt, prompt):
     return conversation
 
 
-def prepare_inputs(system_prompt: str, images: list, prompts: list, processor: AutoProcessor):
+def prepare_inputs(system_prompt: str, images: list, prompts: list, processor: AutoProcessor, use_low_gpu_vram=False):
     assert len(images) == len(prompts)
 
     conversations = []
@@ -78,7 +83,8 @@ def prepare_inputs(system_prompt: str, images: list, prompts: list, processor: A
         padding=True,
         return_tensors="pt",
     )
-    inputs = inputs.to("cuda:1")  # hard-code for now.
+    if not use_low_gpu_vram:
+        inputs = inputs.to("cuda:1")  # hard-code for now.
     return inputs
 
 
