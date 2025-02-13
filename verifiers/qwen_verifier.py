@@ -2,7 +2,6 @@ from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
 import torch
 from PIL import Image
 from typing import Union
-import os
 
 import sys
 
@@ -10,7 +9,6 @@ sys.path.append("..")
 
 from utils import load_verifier_prompt, recover_json_from_output
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
 
 MODEL_ID = "Qwen/Qwen2.5-VL-7B-Instruct"
 # Optional device map that one can use to let `transformers` share a single GPU and CPU.
@@ -54,7 +52,7 @@ DEVICE_MAP = {
 class QwenVerifier:
     def __init__(self, use_low_gpu_vram=False):
         self.model, self.processor = self.load_verifier(use_low_gpu_vram=use_low_gpu_vram)
-        self.verifier_prompt = load_verifier_prompt(os.path.join(script_dir, "..", "verifier_prompt.txt"))
+        self.verifier_prompt = load_verifier_prompt("verifier_prompt.txt")
 
     @torch.no_grad()
     def load_verifier(self, use_low_gpu_vram=False):
