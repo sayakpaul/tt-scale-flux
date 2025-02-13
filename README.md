@@ -151,11 +151,11 @@ experiment with a different prompt.
   </tr>
   <tr>
     <td>a bustling manga street, devoid of vehicles, detailed with vibrant colors and dynamic line work, characters in the background adding life and movement, under a soft golden hour light, with rich textures and a lively atmosphere, high resolution, sharp focus</td>
-    <td><img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_a_bustling_manga_street_devoid_of_vehicles_detailed_with_vibrant_colors_and_dynamic_l_i@1-4.png" alt="Manga" width="350"></td>
+    <td><img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_a_bustling_manga_street_devoid_of_vehicles_detailed_with_vibrant_colors_and_dynamic_l_i@1-4.jpeg" alt="Manga" width="350"></td>
   </tr>
   <tr>
     <td>Alice in a vibrant, dreamlike digital painting inside the Nemo Nautilus submarine.</td>
-    <td><img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_Alice_in_a_vibrant_dreamlike_digital_painting_inside_the_Nemo_Nautilus_submarine__i@1-4.png" alt="Alicet" width="350"></td>
+    <td><img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_Alice_in_a_vibrant_dreamlike_digital_painting_inside_the_Nemo_Nautilus_submarine__i@1-4.jpeg" alt="Alicet" width="350"></td>
   </tr>
 </table>
 
