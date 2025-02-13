@@ -2,7 +2,6 @@ import argparse
 import os
 import json
 from datetime import datetime
-from typing import Tuple
 
 import numpy as np
 import torch
@@ -27,8 +26,9 @@ def parse_cli_args():
         "--search_rounds",
         type=int,
         default=4,
-        help="Number of search rounds (each round doubles the number of noise samples).",
+        help="Number of search rounds (each round scales the number of noise samples).",
     )
+    parser.add_argument("--prompt", type=str, default=None, help="Use your own prompt.")
     parser.add_argument(
         "--num_prompts",
         type=lambda x: x if x == "all" else int(x),
@@ -69,7 +69,13 @@ def parse_cli_args():
         choices=["gemini", "qwen"],
         help="Verifier to use; must be one of 'gemini' or 'qwen'.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.prompt and args.num_prompts:
+        raise ValueError("Both `prompt` and `num_prompts` cannot be specified.")
+    if not args.prompt and not args.num_prompts:
+        raise ValueError("Both `prompt` and `num_prompts` cannot be None.")
+    return args
 
 
 def sample(
@@ -212,11 +218,14 @@ def main():
     print(f"Artifacts will be saved to: {root_dir}")
 
     # Load prompts from file.
-    with open("prompts_open_image_pref_v1.txt", "r") as f:
-        prompts = [line.strip() for line in f.readlines() if line.strip()]
-    if num_prompts != "all":
-        prompts = prompts[:num_prompts]
-    print(f"Using {len(prompts)} prompt(s).")
+    if args.prompt is None:
+        with open("prompts_open_image_pref_v1.txt", "r") as f:
+            prompts = [line.strip() for line in f.readlines() if line.strip()]
+        if num_prompts != "all":
+            prompts = prompts[:num_prompts]
+        print(f"Using {len(prompts)} prompt(s).")
+    else:
+        prompts = [args.prompt]
 
     # Set up the image-generation pipeline (on the first GPU if available).
     pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
