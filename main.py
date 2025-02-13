@@ -31,7 +31,7 @@ def parse_cli_args():
     parser.add_argument("--prompt", type=str, default=None, help="Use your own prompt.")
     parser.add_argument(
         "--num_prompts",
-        type=lambda x: x if x == "all" else int(x),
+        type=lambda x: None if x.lower() == "none" else x if x.lower() == "all" else int(x),
         default=2,
         help="Number of prompts to use (or 'all' to use all prompts from file).",
     )
