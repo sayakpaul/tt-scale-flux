@@ -3,7 +3,8 @@
 Simple re-implementation of inference-time scaling Flux.1-Dev as introduced in [Inference-Time Scaling for Diffusion Models beyond Scaling Denoising Steps](https://arxiv.org/abs/2501.09732) by Ma et al. We implement the random search strategy to scale the inference compute budget.
 
 <div align="center">
-<img src="">
+<img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_i@1-4.png" width=600/>
+<p><i>Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists.</i></p>
 </div>
 
 ## Getting started
@@ -97,6 +98,14 @@ Each JSON file should look like so:
 
 To limit the number of prompts, specify `--num_prompts`. By default, we use 2 prompts. Specify "--num_prompts=all" to use all.
 
+Once the results are generated, process the results by running:
+
+```bash
+python process_results.py --path=path_to_the_output_dir
+```
+
+This should output a collage of the best images generated in each search round, grouped by the same prompt.
+
 ## Controlling the "scale"
 
 By default, we use 4 `search_rounds` and start with a noise pool size of 2. Each search round scales up the pool size like so: `2 ** current_seach_round` (with indexing starting from 1). This is where the "scale" in inference-time scaling comes from. You can increase the compute budget by specifying a larger `search_rounds`.
@@ -126,12 +135,58 @@ By default, we use "overall_score" as the metric to obtain the best samples in e
 * "emotional_or_thematic_resonance"
 * "overall_score"
 
+The verifier prompt that is used during grading/verification is specified in [this file](./verifiers/verifier_prompt.txt). The prompt is a slightly modified version of the one specified in the Figure 16 of
+the paper (Inference-Time Scaling for Diffusion Models beyond Scaling Denoising Steps). You are welcome to 
+experiment with a different prompt.
+
 ## More results
 
-Changing `choice_of_metric` TODO
+<details>
+<summary>Click to expand</summary>
+
+<table>
+  <tr>
+    <th>Prompt</th>
+    <th>Result</th>
+  </tr>
+  <tr>
+    <td>a bustling manga street, devoid of vehicles, detailed with vibrant colors and dynamic line work, characters in the background adding life and movement, under a soft golden hour light, with rich textures and a lively atmosphere, high resolution, sharp focus</td>
+    <td><img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_a_bustling_manga_street_devoid_of_vehicles_detailed_with_vibrant_colors_and_dynamic_l_i@1-4.png" alt="Manga" width="350"></td>
+  </tr>
+  <tr>
+    <td>Alice in a vibrant, dreamlike digital painting inside the Nemo Nautilus submarine.</td>
+    <td><img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_Alice_in_a_vibrant_dreamlike_digital_painting_inside_the_Nemo_Nautilus_submarine__i@1-4.png" alt="Alicet" width="350"></td>
+  </tr>
+</table>
+
+</details><br>
+
+Both searches were performed with "overall_score" as the metric. Below is example, presenting a comparison
+between the outputs of different metrics -- "overall_score" vs. "emotional_or_thematic_resonance" for the prompt:
+"a tiny astronaut hatching from an egg on the moon":
+
+<details>
+<summary>Click to expand</summary>
+
+<table>
+  <tr>
+    <th>Metric</th>
+    <th>Result</th>
+  </tr>
+  <tr>
+    <td>"overall_score"</td>
+    <td><img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_a_tiny_astronaut_hatching_from_an_egg_on_the_moon_i@1-4.png" alt="overall" width="350"></td>
+  </tr>
+  <tr>
+    <td>"emotional_or_thematic_resonance"</td>
+    <td><img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_a_tiny_astronaut_hatching_from_an_egg_on_the_moon_i@1-4_thematic.png" alt="Alicet" width="350"></td>
+  </tr>
+</table>
+
+</details>
 
 ## Acknowledgements
 
-* Thanks to [Willis](https://twitter.com/ma_nanye) for all the guidance and pair-coding.
+* Thanks to [Willis Ma](https://twitter.com/ma_nanye) for all the guidance and pair-coding.
 * Thanks to Hugging Face for supporting the compute.
 * Thanks to Google for providing Gemini credits.
