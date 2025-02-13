@@ -81,7 +81,7 @@ def sample(
     topk: int,
     root_dir: str,
     config: dict,
-) -> Tuple[str, dict]:
+) -> dict:
     """
     For a given prompt, generate images using all provided noises,
     score them with the verifier, and select the top-K noise.
@@ -161,6 +161,7 @@ def sample(
     for ts in topk_scores:
         print(f"Prompt='{prompt}' | Best seed={ts['seed']} | " f"Score={ts[config['choice_of_metric']]}")
 
+    best_img_path = os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{topk_scores[0]['seed']}.png")
     datapoint = {
         "prompt": prompt,
         "search_round": search_round,
@@ -168,9 +169,10 @@ def sample(
         "best_noise_seed": topk_scores[0]["seed"],
         "best_score": topk_scores[0][config["choice_of_metric"]],
         "choice_of_metric": config["choice_of_metric"],
+        "best_img_path": best_img_path,
     }
     # Save the best config JSON file alongside the images.
-    best_json_filename = os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{topk_scores[0]['seed']}.json")
+    best_json_filename = best_img_path.replace(".png", ".json")
     with open(best_json_filename, "w") as f:
         json.dump(datapoint, f, indent=4)
     return datapoint
