@@ -23,6 +23,7 @@ def parse_cli_args():
     parser.add_argument(
         "--pipeline_config_path",
         type=str,
+        required=True,
         default="configs/flux.1_dev.json",
         help="Pipeline configuration path that should include loading info and __call__() args and their values.",
     )
@@ -39,8 +40,6 @@ def parse_cli_args():
         default=2,
         help="Number of prompts to use (or 'all' to use all prompts from file).",
     )
-    parser.add_argument("--height", type=int, default=1024, help="Height of the generated images.")
-    parser.add_argument("--width", type=int, default=1024, help="Width of the generated images.")
     parser.add_argument(
         "--max_new_tokens",
         type=int,
