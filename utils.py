@@ -3,7 +3,7 @@ from diffusers.utils.torch_utils import randn_tensor
 from diffusers import FluxPipeline
 import re
 import hashlib
-from typing import Dict
+from typing import Dict, Optional
 import json
 from typing import Union
 from PIL import Image
@@ -15,6 +15,8 @@ import io
 TORCH_DTYPE_MAP = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
 MODEL_NAME_MAP = {
     "black-forest-labs/FLUX.1-dev": "flux.1-dev",
+    "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": "pixart-sigma-1024-ms",
+    "stabilityai/stable-diffusion-xl-base-1.0": "sdxl-base",
 }
 
 
@@ -103,8 +105,28 @@ def prepare_latents_for_flux(
     return latents
 
 
+# Adapted from Diffusers.
+def prepare_latents(
+    batch_size: int, height: int, width: int, generator: torch.Generator, device: str, dtype: torch.dtype
+):
+    num_channels_latents = 4
+    vae_scale_factor = 8
+    shape = (
+        batch_size,
+        num_channels_latents,
+        int(height) // vae_scale_factor,
+        int(width) // vae_scale_factor,
+    )
+    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
+    return latents
+
+
 def get_latent_prep_fn(pretrained_model_name_or_path: str) -> callable:
-    fn_map = {"black-forest-labs/FLUX.1-dev": prepare_latents_for_flux}[pretrained_model_name_or_path]
+    fn_map = {
+        "black-forest-labs/FLUX.1-dev": prepare_latents_for_flux,
+        "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": prepare_latents,
+        "stabilityai/stable-diffusion-xl-base-1.0": prepare_latents,
+    }[pretrained_model_name_or_path]
     return fn_map
 
 
@@ -116,11 +138,14 @@ def get_noises(
     device="cuda",
     dtype: torch.dtype = torch.bfloat16,
     fn: callable = prepare_latents_for_flux,
+    init_noise_sigma: Optional[float] = None,
 ) -> Dict[int, torch.Tensor]:
     seeds = torch.randint(0, high=max_seed, size=(num_samples,))
     print(f"{seeds=}")
-    noises = {
-        int(noise_seed): fn(
+
+    noises = {}
+    for noise_seed in seeds:
+        latents = fn(
             batch_size=1,
             height=height,
             width=width,
@@ -128,8 +153,12 @@ def get_noises(
             device=device,
             dtype=dtype,
         )
-        for noise_seed in seeds
-    }
+        if init_noise_sigma:
+            # scale the initial noise by the standard deviation required by the scheduler
+            latents = latents * init_noise_sigma
+
+        noises.update({int(noise_seed): latents})
+
     assert len(noises) == len(seeds)
     return noises
 

@@ -134,7 +134,12 @@ This should output a collage of the best images generated in each search round, 
 
 ## Controlling the pipeline checkpoint and `__call__()` args
 
-This is controlled via the `--pipeline_config_path` CLI args. By default, it uses [`configs/flux.1_dev.json`](./configs/flux.1_dev.json). You can either modify this one or create your own JSON file to experiment with different pipelines. We provide some predefined configs for PixArt-Sigma, SDXL, and SD v1.5.
+This is controlled via the `--pipeline_config_path` CLI args. By default, it uses [`configs/flux.1_dev.json`](./configs/flux.1_dev.json). You can either modify this one or create your own JSON file to experiment with different pipelines. We provide some predefined configs for Flux.1-Dev, PixArt-Sigma, SDXL, and SD v1.5.
+
+The above-mentioned pipelines are already supported. To add your own, you need to make modifications to:
+
+* TODO1
+* TODO2
 
 ## Controlling the "scale"
 

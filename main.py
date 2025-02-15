@@ -191,6 +191,7 @@ def main():
         verifier = QwenVerifier(use_low_gpu_vram=config["use_low_gpu_vram"])
 
     # Main loop: For each search round and each prompt, generate images, verify, and save artifacts.
+    init_noise_sigma = getattr(pipe.scheduler, "init_noise_sigma", None)
     for round in range(1, search_rounds + 1):
         print(f"\n=== Round: {round} ===")
         num_noises_to_sample = 2**round  # scale noise pool.
@@ -202,6 +203,7 @@ def main():
                 width=config["width"],
                 dtype=torch_dtype,
                 fn=get_latent_prep_fn(pipeline_name),
+                init_noise_sigma=init_noise_sigma,
             )
             print(f"Number of noise samples: {len(noises)}")
             datapoint_for_current_round = sample(
