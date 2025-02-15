@@ -34,7 +34,7 @@ After this is done executing, you should expect a folder named `output` with the
 <summary>Click to expand</summary>
 
 ```bash
-output/gemini/overall_score/20250213_034054$ tree 
+output/flux.1-dev/gemini/overall_score/20250215_141308$ tree 
 .
 ├── prompt@Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_hash@b9094b65_i@1_s@1039315023.png
 ├── prompt@Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_hash@b9094b65_i@1_s@77559330.json
@@ -96,7 +96,33 @@ Each JSON file should look like so:
 
 </details>
 
-To limit the number of prompts, specify `--num_prompts`. By default, we use 2 prompts. Specify "--num_prompts=all" to use all.
+To limit the number of prompts, specify `--num_prompts`. By default, we use 2 prompts. Specify "--num_prompts=all" to use all. 
+
+The output directory should also contain a `config.json`, looking like so:
+
+<details>
+<summary>Click to expand</summary>
+
+```json
+{
+  "max_new_tokens": 300,
+  "use_low_gpu_vram": false,
+  "choice_of_metric": "overall_score",
+  "verifier_to_use": "gemini",
+  "torch_dtype": "bf16",
+  "height": 1024,
+  "width": 1024,
+  "max_sequence_length": 512,
+  "guidance_scale": 3.5,
+  "num_inference_steps": 50,
+  "pipeline_config_path": "configs/flux.1_dev.json",
+  "search_rounds": 4,
+  "prompt": "an anime illustration of a wiener schnitzel",
+  "num_prompts": null
+}
+```
+
+</details>
 
 Once the results are generated, process the results by running:
 
@@ -105,6 +131,10 @@ python process_results.py --path=path_to_the_output_dir
 ```
 
 This should output a collage of the best images generated in each search round, grouped by the same prompt.
+
+## Controlling the pipeline checkpoint and `__call__()` args
+
+This is controlled via the `--pipeline_config_path` CLI args. By default, it uses [`configs/flux.1_dev.json`](./configs/flux.1_dev.json). You can either modify this one or create your own JSON file to experiment with different pipelines. We provide some predefined configs for PixArt-Sigma, SDXL, and SD v1.5.
 
 ## Controlling the "scale"
 
