@@ -13,6 +13,9 @@ import io
 
 
 TORCH_DTYPE_MAP = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
+MODEL_NAME_MAP = {
+    "black-forest-labs/FLUX.1-dev": "flux.1-dev",
+}
 
 
 def parse_cli_args():
@@ -23,7 +26,6 @@ def parse_cli_args():
     parser.add_argument(
         "--pipeline_config_path",
         type=str,
-        required=True,
         default="configs/flux.1_dev.json",
         help="Pipeline configuration path that should include loading info and __call__() args and their values.",
     )

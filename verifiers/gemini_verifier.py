@@ -7,6 +7,8 @@ from typing import Union
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
 import sys
 
 sys.path.append("..")
@@ -31,7 +33,7 @@ class Grading(typing.TypedDict):
 class GeminiVerifier:
     def __init__(self, seed=1994, model_name="gemini-2.0-flash"):
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        system_instruction = load_verifier_prompt("verifier_prompt.txt")
+        system_instruction = load_verifier_prompt(os.path.join(script_dir, "verifier_prompt.txt"))
         self.generation_config = types.GenerateContentConfig(
             system_instruction=system_instruction,
             response_mime_type="application/json",

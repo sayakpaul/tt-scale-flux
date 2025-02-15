@@ -1,7 +1,10 @@
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
 import torch
 from PIL import Image
+import os
 from typing import Union
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 import sys
 
@@ -52,7 +55,7 @@ DEVICE_MAP = {
 class QwenVerifier:
     def __init__(self, use_low_gpu_vram=False):
         self.model, self.processor = self.load_verifier(use_low_gpu_vram=use_low_gpu_vram)
-        self.verifier_prompt = load_verifier_prompt("verifier_prompt.txt")
+        self.verifier_prompt = load_verifier_prompt(os.path.join(script_dir, "verifier_prompt.txt"))
 
     @torch.no_grad()
     def load_verifier(self, use_low_gpu_vram=False):
