@@ -5,84 +5,21 @@ from datetime import datetime
 
 import numpy as np
 import torch
-from diffusers import FluxPipeline
+from diffusers import DiffusionPipeline
 from tqdm.auto import tqdm
 
-from utils import prompt_to_filename, get_noises
+from utils import prompt_to_filename, get_noises, TORCH_DTYPE_MAP, get_latent_prep_fn, parse_cli_args
 
 # Non-configurable constants
-NUM_LATENT_CHANNELS = 16
-VAE_SCALE_FACTOR = 8
 TOPK = 1  # Always selecting the top-1 noise for the next round
 MAX_SEED = np.iinfo(np.int32).max  # To generate random seeds
-
-
-def parse_cli_args():
-    """
-    Parse and return CLI arguments.
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--search_rounds",
-        type=int,
-        default=4,
-        help="Number of search rounds (each round scales the number of noise samples).",
-    )
-    parser.add_argument("--prompt", type=str, default=None, help="Use your own prompt.")
-    parser.add_argument(
-        "--num_prompts",
-        type=lambda x: None if x.lower() == "none" else x if x.lower() == "all" else int(x),
-        default=2,
-        help="Number of prompts to use (or 'all' to use all prompts from file).",
-    )
-    parser.add_argument("--height", type=int, default=1024, help="Height of the generated images.")
-    parser.add_argument("--width", type=int, default=1024, help="Width of the generated images.")
-    parser.add_argument(
-        "--max_new_tokens",
-        type=int,
-        default=300,
-        help="Maximum number of tokens for the verifier. Ignored when using Gemini.",
-    )
-    parser.add_argument(
-        "--use_low_gpu_vram",
-        action="store_true",
-        help="Flag to use low GPU VRAM mode (moves models between cpu and cuda as needed). Ignored when using Gemini.",
-    )
-    parser.add_argument(
-        "--choice_of_metric",
-        type=str,
-        default="overall_score",
-        choices=[
-            "accuracy_to_prompt",
-            "creativity_and_originality",
-            "visual_quality_and_realism",
-            "consistency_and_cohesion",
-            "emotional_or_thematic_resonance",
-            "overall_score",
-        ],
-        help="Metric to use from the LLM grading.",
-    )
-    parser.add_argument(
-        "--verifier_to_use",
-        type=str,
-        default="gemini",
-        choices=["gemini", "qwen"],
-        help="Verifier to use; must be one of 'gemini' or 'qwen'.",
-    )
-    args = parser.parse_args()
-
-    if args.prompt and args.num_prompts:
-        raise ValueError("Both `prompt` and `num_prompts` cannot be specified.")
-    if not args.prompt and not args.num_prompts:
-        raise ValueError("Both `prompt` and `num_prompts` cannot be None.")
-    return args
 
 
 def sample(
     noises: dict[int, torch.Tensor],
     prompt: str,
     search_round: int,
-    pipe: FluxPipeline,
+    pipe: DiffusionPipeline,
     verifier,
     topk: int,
     root_dir: str,
@@ -106,15 +43,7 @@ def sample(
         if config["use_low_gpu_vram"] and config["verifier_to_use"] != "gemini":
             pipe = pipe.to("cuda:0")
         print(f"Generating images.")
-        image = pipe(
-            prompt=prompt,
-            latents=noise,
-            height=config["height"],
-            width=config["width"],
-            max_sequence_length=512,
-            guidance_scale=3.5,
-            num_inference_steps=50,
-        ).images[0]
+        image = pipe(prompt=prompt, latents=noise, **config).images[0]
         if config["use_low_gpu_vram"] and config["verifier_to_use"] != "gemini":
             pipe = pipe.to("cpu")
 
@@ -207,13 +136,18 @@ def main():
         "choice_of_metric": args.choice_of_metric,
         "verifier_to_use": args.verifier_to_use,
     }
+    with open(args.pipeline_config_path, "r") as f:
+        config.update(json.loads(f))
 
     search_rounds = args.search_rounds
     num_prompts = args.num_prompts
 
     # Create a root output directory: output/{verifier_to_use}/{current_datetime}
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-    root_dir = os.path.join("output", config["verifier_to_use"], config["choice_of_metric"], current_datetime)
+    pipeline_name = config.pop("pretrained_model_name_or_path")
+    root_dir = os.path.join(
+        "output", pipeline_name, config["verifier_to_use"], config["choice_of_metric"], current_datetime
+    )
     os.makedirs(root_dir, exist_ok=True)
     print(f"Artifacts will be saved to: {root_dir}")
 
@@ -228,7 +162,8 @@ def main():
         prompts = [args.prompt]
 
     # Set up the image-generation pipeline (on the first GPU if available).
-    pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
+    torch_dtype = TORCH_DTYPE_MAP[config["torch_dtype"]]
+    pipe = DiffusionPipeline.from_pretrained(pipeline_name, torch_dtype=torch_dtype)
     if not config["use_low_gpu_vram"]:
         pipe = pipe.to("cuda:0")
     pipe.set_progress_bar_config(disable=True)
@@ -250,11 +185,11 @@ def main():
         for prompt in tqdm(prompts, desc="Sampling prompts"):
             noises = get_noises(
                 max_seed=MAX_SEED,
+                num_samples=num_noises_to_sample,
                 height=config["height"],
                 width=config["width"],
-                num_latent_channels=NUM_LATENT_CHANNELS,
-                vae_scale_factor=VAE_SCALE_FACTOR,
-                num_samples=num_noises_to_sample,
+                dtype=torch_dtype,
+                fn=get_latent_prep_fn(pipeline_name),
             )
             print(f"Number of noise samples: {len(noises)}")
             datapoint_for_current_round = sample(
