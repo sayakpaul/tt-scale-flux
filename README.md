@@ -7,6 +7,10 @@ Simple re-implementation of inference-time scaling Flux.1-Dev as introduced in [
 <p><i>Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists.</i></p>
 </div>
 
+**Updates**
+
+🔥 15/02/2025: Support to load other pipelines has been added in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/5)! [Result section](#more-results) has been updated, too.
+
 ## Getting started
 
 Make sure to install the dependencies: `pip install -r requirements`. The codebase was tested using a single H100 and two H100s (both 80GB variants).
