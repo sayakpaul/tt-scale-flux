@@ -225,7 +225,7 @@ between the outputs of different metrics -- "overall_score" vs. "emotional_or_th
   </tr>
 </table>
 
-</details><br>
+</details>
 
 ### Results from other models
 
@@ -269,6 +269,8 @@ between the outputs of different metrics -- "overall_score" vs. "emotional_or_th
     </td>
   </tr>
 </table>
+
+</details>
 
 ## Acknowledgements
 
