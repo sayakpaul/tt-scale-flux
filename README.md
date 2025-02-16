@@ -170,6 +170,8 @@ By default, we use "overall_score" as the metric to obtain the best samples in e
 * "emotional_or_thematic_resonance"
 * "overall_score"
 
+If you're experimenting with a new verifier, you can relax these choices.
+
 The verifier prompt that is used during grading/verification is specified in [this file](./verifiers/verifier_prompt.txt). The prompt is a slightly modified version of the one specified in the Figure 16 of
 the paper (Inference-Time Scaling for Diffusion Models beyond Scaling Denoising Steps). You are welcome to 
 experiment with a different prompt.
@@ -223,7 +225,50 @@ between the outputs of different metrics -- "overall_score" vs. "emotional_or_th
   </tr>
 </table>
 
-</details>
+</details><br>
+
+### Results from other models
+
+<details>
+<summary>PixArt-Sigma</summary>
+
+<table>
+  <tr>
+    <th>Result</th>
+  </tr>
+  <tr>
+    <td>
+      <img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/pixart_collage_A_person_playing_saxophone__i%401-4.png" alt="saxophone" width="650">
+      <br>
+      <i>A person playing saxophone.</i>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/pixart_collage_Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_i%401-4.png" alt="Alice" width="650">
+      <br>
+      <i>Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists.</i>
+    </td>
+  </tr>
+</table>
+
+</details><br>
+
+<details>
+<summary>SD v1.5</summary>
+
+<table>
+  <tr>
+    <th>Result</th>
+  </tr>
+  <tr>
+    <td>
+      <img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/sd_collage_a_photo_of_an_astronaut_riding_a_horse_on_mars_i%401-6.png" alt="saxophone" width="650">
+      <br>
+      <i>a photo of an astronaut riding a horse on mars</i>
+    </td>
+  </tr>
+</table>
 
 ## Acknowledgements
 
