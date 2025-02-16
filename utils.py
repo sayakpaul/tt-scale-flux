@@ -17,6 +17,7 @@ MODEL_NAME_MAP = {
     "black-forest-labs/FLUX.1-dev": "flux.1-dev",
     "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": "pixart-sigma-1024-ms",
     "stabilityai/stable-diffusion-xl-base-1.0": "sdxl-base",
+    "stable-diffusion-v1-5/stable-diffusion-v1-5": "sd-v1.5",
 }
 
 
@@ -126,6 +127,7 @@ def get_latent_prep_fn(pretrained_model_name_or_path: str) -> callable:
         "black-forest-labs/FLUX.1-dev": prepare_latents_for_flux,
         "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": prepare_latents,
         "stabilityai/stable-diffusion-xl-base-1.0": prepare_latents,
+        "stable-diffusion-v1-5/stable-diffusion-v1-5": prepare_latents,
     }[pretrained_model_name_or_path]
     return fn_map
 
