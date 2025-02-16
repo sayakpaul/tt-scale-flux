@@ -56,8 +56,8 @@ DEVICE_MAP = {
 
 
 class Score(BaseModel):
-    score: float
     explanation: str
+    score: float
 
 
 class Grading(BaseModel):
