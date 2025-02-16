@@ -158,7 +158,7 @@ For other supported CLI args, run `python main.py -h`.
 ## Controlling the verifier
 
 If you don't want to use Gemini, you can use [Qwen2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e) as an option. Simply specify `--verifier_to_use=qwen` for this. Below is a
-complete command:
+complete command that uses SDXL-base:
 
 ```bash
 python main.py --verifier_to_use="qwen" --pipeline_config_path=configs/sdxl.json --prompt="Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists." --num_prompts=None --search_rounds=6
@@ -186,9 +186,6 @@ python main.py --verifier_to_use="qwen" --pipeline_config_path=configs/sdxl.json
 
 <details>
 <summary>Results</summary>
-
-<details>
-<summary>SDXL-base</summary>
 
 <table>
   <tr>
