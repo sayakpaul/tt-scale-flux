@@ -17,8 +17,8 @@ from utils import load_verifier_prompt, convert_to_bytes
 
 
 class Score(typing.TypedDict):
-    score: float
     explanation: str
+    score: float
 
 
 class Grading(typing.TypedDict):
