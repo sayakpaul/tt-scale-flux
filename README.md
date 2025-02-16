@@ -90,13 +90,13 @@ Each JSON file should look like so:
     "prompt": "Photo of an athlete cat explaining it\u2019s latest scandal at a press conference to journalists.",
     "search_round": 4,
     "num_noises": 16,
-    "best_noise_seed": 836183088,
+    "best_noise_seed": 1940263961,
     "best_score": {
-        "score": 9.5,
-        "explanation": "Considering all aspects, especially the high level of accuracy, creativity, and visual appeal, the overall score reflects the model's excellent performance in generating this image."
+        "explanation": "The image excels in accuracy, visual quality, and originality, with minor deductions for thematic resonance. Overall, it's a well-executed and imaginative response to the prompt.",
+        "score": 9.0
     },
     "choice_of_metric": "overall_score",
-    "best_img_path": "output/gemini/overall_score/20250213_034054/prompt@Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_hash@b9094b65_i@4_s@836183088.png"
+    "best_img_path": "output/flux.1-dev/gemini/overall_score/20250216_135414/prompt@Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_hash@b9094b65_i@4_s@1940263961.png"
 }
 ```
 
@@ -161,7 +161,7 @@ If you don't want to use Gemini, you can use [Qwen2.5](https://huggingface.co/co
 complete command that uses SDXL-base:
 
 ```bash
-python main.py --verifier_to_use="qwen" --pipeline_config_path=configs/sdxl.json --prompt="Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists." --num_prompts=None --search_rounds=6
+python main.py --verifier_to_use="qwen" --pipeline_config_path=configs/sdxl.json --prompt="Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists." --num_prompts=None --search_rounds=6 --max_new_tokens=800
 ```
 
 <details>
@@ -172,13 +172,13 @@ python main.py --verifier_to_use="qwen" --pipeline_config_path=configs/sdxl.json
     "prompt": "Photo of an athlete cat explaining it\u2019s latest scandal at a press conference to journalists.",
     "search_round": 6,
     "num_noises": 64,
-    "best_noise_seed": 576119280,
+    "best_noise_seed": 1937268448,
     "best_score": {
-        "score": 9.2,
-        "explanation": "The image excels in multiple aspects, combining imagery, creativity, visual quality, and thematic resonance."
+        "explanation": "Overall, the image demonstrates a high level of accuracy, creativity, and theme consistency while maintaining a high visual quality and coherence within the depicted scenario. The humor and surprise value are significant, contributing to above-average scoring.",
+        "score": 9.0
     },
     "choice_of_metric": "overall_score",
-    "best_img_path": "output/sdxl-base/qwen/overall_score/20250216_100512/prompt@Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_hash@b9094b65_i@6_s@576119280.png"
+    "best_img_path": "output/sdxl-base/qwen/overall_score/20250216_141140/prompt@Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_hash@b9094b65_i@6_s@1937268448.png"
 }
 ```
 
@@ -351,3 +351,4 @@ between the outputs of different metrics -- "overall_score" vs. "emotional_or_th
 * Thanks to [Willis Ma](https://twitter.com/ma_nanye) for all the guidance and pair-coding.
 * Thanks to Hugging Face for supporting the compute.
 * Thanks to Google for providing Gemini credits.
+* Thanks a bunch to [amitness](https://github.com/amitness) for [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/7).
