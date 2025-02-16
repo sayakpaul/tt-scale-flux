@@ -270,7 +270,25 @@ between the outputs of different metrics -- "overall_score" vs. "emotional_or_th
   </tr>
 </table>
 
-</details>
+</details><br>
+
+<details>
+<summary>SDXL-base</summary>
+
+<table>
+  <tr>
+    <th>Result</th>
+  </tr>
+  <tr>
+    <td>
+      <img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/sdxl_collage_Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_i%401-6.jpeg" alt="scandal_cat" width="650">
+      <br>
+      <i>Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists.</i>
+    </td>
+  </tr>
+</table>
+
+</details><br>
 
 ## Acknowledgements
 
