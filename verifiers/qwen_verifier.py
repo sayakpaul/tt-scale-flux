@@ -94,15 +94,7 @@ class QwenVerifier:
 
     @torch.no_grad()
     def load_verifier(self):
-        # model_kwargs = {"pretrained_model_name_or_path": MODEL_ID, "torch_dtype": torch.bfloat16}
-        # if not use_low_gpu_vram:
-        #     model_kwargs.update({"attn_implementation": "flash_attention_2"})
-        # else:
-        #     model_kwargs.update({"device_map": "auto"})
-
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(MODEL_ID)
-        # if not use_low_gpu_vram:
-        #     model = model.to("cuda:1")  # hard code for now.
         processor = AutoProcessor.from_pretrained(MODEL_ID)
         return model, processor
 
