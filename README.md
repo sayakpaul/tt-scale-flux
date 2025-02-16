@@ -10,6 +10,7 @@ Simple re-implementation of inference-time scaling Flux.1-Dev as introduced in [
 **Updates**
 
 🔥 15/02/2025: Support for structured generation with Qwen2.5 has been added (using `outlines` and `pydantic`) in this PR.
+
 🔥 15/02/2025: Support to load other pipelines has been added in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/5)! [Result section](#more-results) has been updated, too.
 
 ## Getting started
@@ -181,7 +182,7 @@ python main.py --verifier_to_use="qwen" --pipeline_config_path=configs/sdxl.json
 }
 ```
 
-<details><br>
+</details>&nbsp;&nbsp;
 
 <details>
 <summary>Results</summary>
