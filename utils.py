@@ -140,7 +140,6 @@ def get_noises(
     device="cuda",
     dtype: torch.dtype = torch.bfloat16,
     fn: callable = prepare_latents_for_flux,
-    init_noise_sigma: Optional[float] = None,
 ) -> Dict[int, torch.Tensor]:
     seeds = torch.randint(0, high=max_seed, size=(num_samples,))
     print(f"{seeds=}")
@@ -155,10 +154,6 @@ def get_noises(
             device=device,
             dtype=dtype,
         )
-        if init_noise_sigma:
-            # scale the initial noise by the standard deviation required by the scheduler
-            latents = latents * init_noise_sigma
-
         noises.update({int(noise_seed): latents})
 
     assert len(noises) == len(seeds)
