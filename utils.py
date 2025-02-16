@@ -3,7 +3,7 @@ from diffusers.utils.torch_utils import randn_tensor
 from diffusers import FluxPipeline
 import re
 import hashlib
-from typing import Dict, Optional
+from typing import Dict
 import json
 from typing import Union
 from PIL import Image
