@@ -199,6 +199,13 @@ experiment with a different prompt.
       <i>Alice in a vibrant, dreamlike digital painting inside the Nemo Nautilus submarine.</i>
     </td>
   </tr>
+  <tr>
+    <td>
+      <img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/flux_collage_an_anime_illustration_of_a_wiener_schnitzel_i%401-4.png" alt="wiener_schnitzel" width="650">
+      <br>
+      <i>an anime illustration of a wiener schnitzel</i>
+    </td>
+  </tr>
 </table>
 
 </details><br>
