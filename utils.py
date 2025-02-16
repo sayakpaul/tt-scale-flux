@@ -48,7 +48,7 @@ def parse_cli_args():
     parser.add_argument(
         "--max_new_tokens",
         type=int,
-        default=300,
+        default=600,
         help="Maximum number of tokens for the verifier. Ignored when using Gemini.",
     )
     parser.add_argument(

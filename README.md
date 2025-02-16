@@ -9,6 +9,7 @@ Simple re-implementation of inference-time scaling Flux.1-Dev as introduced in [
 
 **Updates**
 
+🔥 15/02/2025: Support for structured generation with Qwen2.5 has been added (using `outlines` and `pydantic`) in this PR.
 🔥 15/02/2025: Support to load other pipelines has been added in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/5)! [Result section](#more-results) has been updated, too.
 
 ## Getting started
@@ -155,7 +156,53 @@ For other supported CLI args, run `python main.py -h`.
 
 ## Controlling the verifier
 
-If you don't want to use Gemini, you can use [Qwen2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e) as an option. Simply specify `--verifier_to_use=qwen` for this. 
+If you don't want to use Gemini, you can use [Qwen2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e) as an option. Simply specify `--verifier_to_use=qwen` for this. Below is a
+complete command:
+
+```bash
+python main.py --verifier_to_use="qwen" --pipeline_config_path=configs/sdxl.json --prompt="Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists." --num_prompts=None --search_rounds=6
+```
+
+<details>
+<summary>Sample search JSON</summary>
+
+```json
+{
+    "prompt": "Photo of an athlete cat explaining it\u2019s latest scandal at a press conference to journalists.",
+    "search_round": 6,
+    "num_noises": 64,
+    "best_noise_seed": 576119280,
+    "best_score": {
+        "score": 9.2,
+        "explanation": "The image excels in multiple aspects, combining imagery, creativity, visual quality, and thematic resonance."
+    },
+    "choice_of_metric": "overall_score",
+    "best_img_path": "output/sdxl-base/qwen/overall_score/20250216_100512/prompt@Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_hash@b9094b65_i@6_s@576119280.png"
+}
+```
+
+<details><br>
+
+<details>
+<summary>Results</summary>
+
+<details>
+<summary>SDXL-base</summary>
+
+<table>
+  <tr>
+    <th>Result</th>
+  </tr>
+  <tr>
+    <td>
+      <img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/sdxl_qwen_collage_Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_i%401-6.jpeg" alt="scandal_cat" width="650">
+      <br>
+      <i>Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists.</i>
+    </td>
+  </tr>
+</table>
+
+</details>&nbsp;&nbsp;
 
 > [!IMPORTANT]  
 > This setup was tested on 2 H100s. If you want to do this on a single GPU, specify `--use_low_gpu_vram`.
@@ -212,7 +259,7 @@ experiment with a different prompt.
   </tr>
 </table>
 
-</details><br>
+</details>&nbsp;&nbsp;
 
 Both searches were performed with "overall_score" as the metric. Below is example, presenting a comparison
 between the outputs of different metrics -- "overall_score" vs. "emotional_or_thematic_resonance" for the prompt:
@@ -281,7 +328,7 @@ between the outputs of different metrics -- "overall_score" vs. "emotional_or_th
   </tr>
 </table>
 
-</details><br>
+</details>&nbsp;&nbsp;
 
 <details>
 <summary>SDXL-base</summary>
@@ -299,7 +346,7 @@ between the outputs of different metrics -- "overall_score" vs. "emotional_or_th
   </tr>
 </table>
 
-</details><br>
+</details>&nbsp;&nbsp;
 
 ## Acknowledgements
 

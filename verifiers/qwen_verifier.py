@@ -1,4 +1,7 @@
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+from outlines.models.transformers_vision import transformers_vision
+from pydantic import BaseModel
+import outlines
 import torch
 from PIL import Image
 import os
@@ -10,7 +13,7 @@ import sys
 
 sys.path.append("..")
 
-from utils import load_verifier_prompt, recover_json_from_output
+from utils import load_verifier_prompt
 
 
 MODEL_ID = "Qwen/Qwen2.5-VL-7B-Instruct"
@@ -52,22 +55,54 @@ DEVICE_MAP = {
 }
 
 
-class QwenVerifier:
-    def __init__(self, use_low_gpu_vram=False):
-        self.model, self.processor = self.load_verifier(use_low_gpu_vram=use_low_gpu_vram)
-        self.verifier_prompt = load_verifier_prompt(os.path.join(script_dir, "verifier_prompt.txt"))
+class Score(BaseModel):
+    score: float
+    explanation: str
 
-    @torch.no_grad()
-    def load_verifier(self, use_low_gpu_vram=False):
-        model_kwargs = {"pretrained_model_name_or_path": MODEL_ID, "torch_dtype": torch.bfloat16}
+
+class Grading(BaseModel):
+    accuracy_to_prompt: Score
+    creativity_and_originality: Score
+    visual_quality_and_realism: Score
+    consistency_and_cohesion: Score
+    emotional_or_thematic_resonance: Score
+    overall_score: Score
+
+
+class QwenVerifier:
+    def __init__(self, seed=1994, use_low_gpu_vram=False):
+        model, processor = self.load_verifier()
+
+        model_kwargs = {"torch_dtype": torch.bfloat16}
         if not use_low_gpu_vram:
             model_kwargs.update({"attn_implementation": "flash_attention_2"})
         else:
             model_kwargs.update({"device_map": "auto"})
 
-        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(**model_kwargs)
-        if not use_low_gpu_vram:
-            model = model.to("cuda:1")  # hard code for now.
+        self.model = transformers_vision(
+            MODEL_ID,
+            model_class=model.__class__,
+            device="cuda:1" if not use_low_gpu_vram else "cpu",  # hard-code device.
+            model_kwargs=model_kwargs,
+            processor_class=processor.__class__,
+        )
+        self.structured_generator = outlines.generate.json(self.model, Grading)
+        del model, processor
+
+        self.verifier_prompt = load_verifier_prompt(os.path.join(script_dir, "verifier_prompt.txt"))
+        self.seed = seed
+
+    @torch.no_grad()
+    def load_verifier(self):
+        # model_kwargs = {"pretrained_model_name_or_path": MODEL_ID, "torch_dtype": torch.bfloat16}
+        # if not use_low_gpu_vram:
+        #     model_kwargs.update({"attn_implementation": "flash_attention_2"})
+        # else:
+        #     model_kwargs.update({"device_map": "auto"})
+
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(MODEL_ID)
+        # if not use_low_gpu_vram:
+        #     model = model.to("cuda:1")  # hard code for now.
         processor = AutoProcessor.from_pretrained(MODEL_ID)
         return model, processor
 
@@ -82,9 +117,7 @@ class QwenVerifier:
         conversation.append(user_content)
         return conversation
 
-    def prepare_inputs(
-        self, images: Union[list[Image.Image], Image.Image], prompts: Union[list[str], str], use_low_gpu_vram=False
-    ):
+    def prepare_inputs(self, images: Union[list[Image.Image], Image.Image], prompts: Union[list[str], str]) -> dict:
         assert len(images) == len(prompts)
 
         conversations = []
@@ -93,24 +126,16 @@ class QwenVerifier:
 
         assert len(conversations) == len(images) == len(prompts)
 
-        texts = [self.processor.apply_chat_template(msg, add_generation_prompt=True) for msg in conversations]
-        inputs = self.processor(
-            text=texts,
-            images=images,
-            padding=True,
-            return_tensors="pt",
-        )
-        if not use_low_gpu_vram:
-            inputs = inputs.to("cuda:1")  # hard-code for now.
+        prompts = [self.model.processor.apply_chat_template(msg, add_generation_prompt=True) for msg in conversations]
+        images = [[image] for image in images]
+        inputs = {"images": images, "prompts": prompts}
         return inputs
 
     @torch.no_grad()
     def score(self, inputs, max_new_tokens) -> list[dict[str, float]]:
         # TODO: might need to iterate `inputs` in batches depending on the resources.
-        output_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
-        generated_ids = [output_ids[len(input_ids) :] for input_ids, output_ids in zip(inputs.input_ids, output_ids)]
-        output_text = self.processor.batch_decode(
-            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
+        outputs = self.structured_generator(
+            inputs["prompts"], inputs["images"], max_tokens=max_new_tokens, seed=self.seed
         )
-        outputs = [recover_json_from_output(o) for o in output_text]
+        outputs = [o.dict() for o in outputs]
         return outputs

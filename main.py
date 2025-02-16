@@ -61,11 +61,7 @@ def sample(
         image.save(filename)
 
     # Prepare verifier inputs and perform inference.
-    verifier_inputs = verifier.prepare_inputs(
-        images=images_for_prompt,
-        prompts=[prompt] * len(images_for_prompt),
-        use_low_gpu_vram=use_low_gpu_vram,  # Ignored when using Gemini.
-    )
+    verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
     print("Scoring with the verifier.")
     outputs = verifier.score(
         inputs=verifier_inputs,
