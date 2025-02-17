@@ -48,8 +48,14 @@ def parse_cli_args():
     parser.add_argument(
         "--max_new_tokens",
         type=int,
-        default=600,
+        default=800,
         help="Maximum number of tokens for the verifier. Ignored when using Gemini.",
+    )
+    parser.add_argument(
+        "--batch_size_for_img_gen",
+        type=int,
+        default=1,
+        help="Controls the batch size of noises during image generation. Increasing it reduces the total time at the cost of more memory.",
     )
     parser.add_argument(
         "--use_low_gpu_vram",
@@ -142,7 +148,6 @@ def get_noises(
     fn: callable = prepare_latents_for_flux,
 ) -> Dict[int, torch.Tensor]:
     seeds = torch.randint(0, high=max_seed, size=(num_samples,))
-    print(f"{seeds=}")
 
     noises = {}
     for noise_seed in seeds:

@@ -9,6 +9,8 @@ Simple re-implementation of inference-time scaling Flux.1-Dev as introduced in [
 
 **Updates**
 
+🔥 16/02/2025: Support for batched image generation has been added [in this PR](https://github.com/sayakpaul/tt-scale-flux/pull/9). It speeds up the total time but consumes more memory.
+
 🔥 15/02/2025: Support for structured generation with Qwen2.5 has been added (using `outlines` and `pydantic`) in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/6).
 
 🔥 15/02/2025: Support to load other pipelines has been added in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/5)! [Result section](#more-results) has been updated, too.
@@ -137,6 +139,9 @@ python process_results.py --path=path_to_the_output_dir
 ```
 
 This should output a collage of the best images generated in each search round, grouped by the same prompt.
+
+By default, the `--batch_size_for_img_gen` is set to 1. To speed up the process (at the expense of more memory),
+this number can be increased.
 
 ## Controlling the pipeline checkpoint and `__call__()` args
 

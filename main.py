@@ -26,7 +26,7 @@ def sample(
     config: dict,
 ) -> dict:
     """
-    For a given prompt, generate images using all provided noises,
+    For a given prompt, generate images using all provided noises in batches,
     score them with the verifier, and select the top-K noise.
     The images and JSON artifacts are saved under `root_dir`.
     """
@@ -35,30 +35,43 @@ def sample(
     choice_of_metric = config_cp.pop("choice_of_metric", None)
     verifier_to_use = config_cp.pop("verifier_to_use", "gemini")
     use_low_gpu_vram = config_cp.pop("use_low_gpu_vram", False)
+    batch_size_for_img_gen = config_cp.pop("batch_size_for_img_gen", 1)
 
     images_for_prompt = []
     noises_used = []
     seeds_used = []
     prompt_filename = prompt_to_filename(prompt)
 
-    for i, (seed, noise) in enumerate(noises.items()):
-        # Build the output filename inside the provided root directory.
-        filename = os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{seed}.png")
+    # Convert the noises dictionary into a list of (seed, noise) tuples.
+    noise_items = list(noises.items())
 
-        # If using low GPU VRAM (and not Gemini) move the pipeline to cuda before generating.
+    # Process the noises in batches.
+    for i in range(0, len(noise_items), batch_size_for_img_gen):
+        batch = noise_items[i : i + batch_size_for_img_gen]
+        seeds_batch, noises_batch = zip(*batch)
+        filenames_batch = [
+            os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{seed}.png") for seed in seeds_batch
+        ]
+
         if use_low_gpu_vram and verifier_to_use != "gemini":
             pipe = pipe.to("cuda:0")
-        print(f"Generating images.")
-        image = pipe(prompt=prompt, latents=noise, **config_cp).images[0]
+        print(f"Generating images for batch with seeds: {[s for s in seeds_batch]}.")
+
+        # Create a batched prompt list and stack the latents.
+        batched_prompts = [prompt] * len(noises_batch)
+        batched_latents = torch.stack(noises_batch).squeeze(dim=1)
+
+        batch_result = pipe(prompt=batched_prompts, latents=batched_latents, **config_cp)
+        batch_images = batch_result.images
         if use_low_gpu_vram and verifier_to_use != "gemini":
             pipe = pipe.to("cpu")
 
-        images_for_prompt.append(image)
-        noises_used.append(noise)
-        seeds_used.append(seed)
-
-        # Save the intermediate image to the output folder.
-        image.save(filename)
+        # Iterate over the batch and save the images.
+        for seed, noise, image, filename in zip(seeds_batch, noises_batch, batch_images, filenames_batch):
+            images_for_prompt.append(image)
+            noises_used.append(noise)
+            seeds_used.append(seed)
+            image.save(filename)
 
     # Prepare verifier inputs and perform inference.
     verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
@@ -70,20 +83,20 @@ def sample(
     for o in outputs:
         assert choice_of_metric in o, o.keys()
 
-    assert (
-        len(outputs) == len(images_for_prompt)
-    ), f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
+    assert len(outputs) == len(images_for_prompt), (
+        f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
+    )
 
     results = []
     for json_dict, seed_val, noise in zip(outputs, seeds_used, noises_used):
-        # Attach the noise tensor so we can select top-K
+        # Attach the noise tensor so we can select top-K.
         merged = {**json_dict, "noise": noise, "seed": seed_val}
         results.append(merged)
 
     # Sort by the chosen metric descending and pick top-K.
     for x in results:
         assert choice_of_metric in x, (
-            f"Expected all dicts in `results` to contain the " f"`{choice_of_metric}` key; got {x.keys()}."
+            f"Expected all dicts in `results` to contain the `{choice_of_metric}` key; got {x.keys()}."
         )
 
     def f(x):
@@ -96,7 +109,7 @@ def sample(
 
     # Print debug information.
     for ts in topk_scores:
-        print(f"Prompt='{prompt}' | Best seed={ts['seed']} | " f"Score={ts[choice_of_metric]}")
+        print(f"Prompt='{prompt}' | Best seed={ts['seed']} | Score={ts[choice_of_metric]}")
 
     best_img_path = os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{topk_scores[0]['seed']}.png")
     datapoint = {
@@ -135,6 +148,7 @@ def main():
         "use_low_gpu_vram": args.use_low_gpu_vram,
         "choice_of_metric": args.choice_of_metric,
         "verifier_to_use": args.verifier_to_use,
+        "batch_size_for_img_gen": args.batch_size_for_img_gen,
     }
     with open(args.pipeline_config_path, "r") as f:
         config.update(json.load(f))
