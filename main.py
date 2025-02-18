@@ -175,7 +175,7 @@ def main():
 
     # Load prompts from file.
     if args.prompt is None:
-        with open("prompts_open_image_pref_v1.txt", "r") as f:
+        with open("prompts_open_image_pref_v1.txt", "r", encoding='utf-8' ) as f:
             prompts = [line.strip() for line in f.readlines() if line.strip()]
         if num_prompts != "all":
             prompts = prompts[:num_prompts]
