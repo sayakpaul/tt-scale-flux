@@ -133,7 +133,7 @@ def sample(
     best_json_filename = best_img_path.replace(".png", ".json")
     with open(best_json_filename, "w") as f:
         datapoint_cp = datapoint.copy()
-        datapoint_cp.pop("noise")
+        datapoint_cp.pop("best_noise")
         json.dump(datapoint_cp, f, indent=4)
     return datapoint
 
@@ -237,13 +237,15 @@ def main():
                 # Extract the base noise and its seed.
                 base_seed, base_noise = next(iter(noises.items()))
                 # Generate neighbors from the base noise (after squeezing if needed).
-                neighbors = generate_neighbors(base_noise.squeeze(0))
+                neighbors = generate_neighbors(
+                    base_noise, threshold=search_args["threshold"], num_neighbors=search_args["num_neighbors"]
+                ).squeeze(0)
                 # Concatenate the base noise with its neighbors.
                 neighbors_and_noise = torch.cat([base_noise, neighbors], dim=0)
                 # Build a new dictionary mapping updated seeds to each noise.
                 new_noises = {}
                 for i, noise_tensor in enumerate(neighbors_and_noise):
-                    new_noises[base_seed + i] = noise_tensor
+                    new_noises[base_seed + i] = noise_tensor.unsqueeze(0)
                 noises = new_noises
 
             print(f"Number of noise samples for prompt '{prompt}': {len(noises)}")
