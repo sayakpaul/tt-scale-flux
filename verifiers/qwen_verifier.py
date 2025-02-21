@@ -70,6 +70,14 @@ class Grading(BaseModel):
 
 
 class QwenVerifier:
+    SUPPORTED_METRIC_CHOICES = [
+        "accuracy_to_prompt",
+        "creativity_and_originality",
+        "visual_quality_and_realism",
+        "consistency_and_cohesion",
+        "emotional_or_thematic_resonance",
+        "overall_score",
+    ]
     def __init__(self, seed=1994, use_low_gpu_vram=False):
         model, processor = self.load_verifier()
 

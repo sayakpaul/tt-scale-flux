@@ -19,7 +19,7 @@ MODEL_NAME_MAP = {
     "stabilityai/stable-diffusion-xl-base-1.0": "sdxl-base",
     "stable-diffusion-v1-5/stable-diffusion-v1-5": "sd-v1.5",
 }
-
+MANDATORY_CONFIG_KEYS = ["pretrained_model_name_or_path", "torch_dtype", "pipeline_call_args", "verifier_args", "search_args"]
 
 def parse_cli_args():
     """
@@ -30,13 +30,6 @@ def parse_cli_args():
         "--pipeline_config_path",
         type=str,
         default="configs/flux.1_dev.json",
-        help="Pipeline configuration path that should include loading info and __call__() args and their values.",
-    )
-    parser.add_argument(
-        "--search_rounds",
-        type=int,
-        default=4,
-        help="Number of search rounds (each round scales the number of noise samples).",
     )
     parser.add_argument("--prompt", type=str, default=None, help="Use your own prompt.")
     parser.add_argument(
@@ -44,12 +37,6 @@ def parse_cli_args():
         type=lambda x: None if x.lower() == "none" else x if x.lower() == "all" else int(x),
         default=2,
         help="Number of prompts to use (or 'all' to use all prompts from file).",
-    )
-    parser.add_argument(
-        "--max_new_tokens",
-        type=int,
-        default=800,
-        help="Maximum number of tokens for the verifier. Ignored when using Gemini.",
     )
     parser.add_argument(
         "--batch_size_for_img_gen",
@@ -62,35 +49,34 @@ def parse_cli_args():
         action="store_true",
         help="Flag to use low GPU VRAM mode (moves models between cpu and cuda as needed). Ignored when using Gemini.",
     )
-    parser.add_argument(
-        "--choice_of_metric",
-        type=str,
-        default="overall_score",
-        choices=[
-            "accuracy_to_prompt",
-            "creativity_and_originality",
-            "visual_quality_and_realism",
-            "consistency_and_cohesion",
-            "emotional_or_thematic_resonance",
-            "overall_score",
-        ],
-        help="Metric to use from the LLM grading. When implementing something custom, feel free to relax these.",
-    )
-    parser.add_argument(
-        "--verifier_to_use",
-        type=str,
-        default="gemini",
-        choices=["gemini", "qwen"],
-        help="Verifier to use; must be one of 'gemini' or 'qwen'.",
-    )
+    
     args = parser.parse_args()
 
+    validate_args(args)
+    return args
+
+def validate_args(args):
     if args.prompt and args.num_prompts:
         raise ValueError("Both `prompt` and `num_prompts` cannot be specified.")
     if not args.prompt and not args.num_prompts:
         raise ValueError("Both `prompt` and `num_prompts` cannot be None.")
-    return args
 
+    with open(args.pipeline_config_path, "r") as f:
+        config = json.load(f)
+
+    config_keys = list(config.keys())
+    assert all(element in config_keys for element in MANDATORY_CONFIG_KEYS), f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
+    
+    from verifiers import SUPPORTED_VERIFIERS, SUPPORTED_METRICS
+
+    verifier_args = config["verifier_args"]
+    supported_verifiers = list(SUPPORTED_VERIFIERS.keys())
+    verifier = verifier_args["name"]
+    assert verifier in supported_verifiers, f"Unknown verifier provided: {verifier}, supported ones are: {supported_metrics}."
+
+    supported_metrics = SUPPORTED_METRICS[verifier_args["name"]]
+    choice_of_metric = verifier_args["choice_of_metric"]
+    assert choice_of_metric in supported_metrics, f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
 
 # Adapted from Diffusers.
 def prepare_latents_for_flux(

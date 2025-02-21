@@ -30,12 +30,12 @@ def sample(
     score them with the verifier, and select the top-K noise.
     The images and JSON artifacts are saved under `root_dir`.
     """
-    config_cp = copy.deepcopy(config)
-    max_new_tokens = config_cp.pop("max_new_tokens", None)
-    choice_of_metric = config_cp.pop("choice_of_metric", None)
-    verifier_to_use = config_cp.pop("verifier_to_use", "gemini")
-    use_low_gpu_vram = config_cp.pop("use_low_gpu_vram", False)
-    batch_size_for_img_gen = config_cp.pop("batch_size_for_img_gen", 1)
+    use_low_gpu_vram = config.get("use_low_gpu_vram", False)
+    batch_size_for_img_gen = config.get("batch_size_for_img_gen", 1)
+    verifier_args = config.get("verifier_args")
+    max_new_tokens = verifier_args.get("max_new_tokens", None)
+    choice_of_metric = verifier_args.get("choice_of_metric", None)
+    verifier_to_use = verifier_args.get("name", "gemini")
 
     images_for_prompt = []
     noises_used = []
@@ -61,7 +61,7 @@ def sample(
         batched_prompts = [prompt] * len(noises_batch)
         batched_latents = torch.stack(noises_batch).squeeze(dim=1)
 
-        batch_result = pipe(prompt=batched_prompts, latents=batched_latents, **config_cp)
+        batch_result = pipe(prompt=batched_prompts, latents=batched_latents, **config["pipeline_call_args"])
         batch_images = batch_result.images
         if use_low_gpu_vram and verifier_to_use != "gemini":
             pipe = pipe.to("cpu")
@@ -143,18 +143,12 @@ def main():
     args = parse_cli_args()
 
     # Build a config dictionary for parameters that need to be passed around.
-    config = {
-        "max_new_tokens": args.max_new_tokens,
-        "use_low_gpu_vram": args.use_low_gpu_vram,
-        "choice_of_metric": args.choice_of_metric,
-        "verifier_to_use": args.verifier_to_use,
-        "batch_size_for_img_gen": args.batch_size_for_img_gen,
-    }
     with open(args.pipeline_config_path, "r") as f:
-        config.update(json.load(f))
+        config = json.load(f)
+    config.update(vars(args))
 
-    search_rounds = args.search_rounds
-    num_prompts = args.num_prompts
+    search_rounds = config["search_args"]["search_rounds"]
+    num_prompts = config["num_prompts"]
 
     # Create a root output directory: output/{verifier_to_use}/{current_datetime}
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -167,11 +161,7 @@ def main():
         current_datetime,
     )
     os.makedirs(root_dir, exist_ok=True)
-    print(f"Artifacts will be saved to: {root_dir}")
-    with open(os.path.join(root_dir, "config.json"), "w") as f:
-        config_cp = copy.deepcopy(config)
-        config_cp.update(vars(args))
-        json.dump(config_cp, f)
+    json.dump(config, f)
 
     # Load prompts from file.
     if args.prompt is None:
@@ -191,14 +181,15 @@ def main():
     pipe.set_progress_bar_config(disable=True)
 
     # Load the verifier model.
-    if config["verifier_to_use"] == "gemini":
-        from verifiers.gemini_verifier import GeminiVerifier
+    verifier_args = config["verifier_args"]
+    if verifier_args["name"] == "gemini":
+        from verifiers import GeminiVerifier
 
         verifier = GeminiVerifier()
     else:
         from verifiers.qwen_verifier import QwenVerifier
 
-        verifier = QwenVerifier(use_low_gpu_vram=config["use_low_gpu_vram"])
+        verifier = QwenVerifier(use_low_gpu_vram=verifier_args["use_low_gpu_vram"])
 
     # Main loop: For each search round and each prompt, generate images, verify, and save artifacts.
     for round in range(1, search_rounds + 1):
@@ -208,8 +199,8 @@ def main():
             noises = get_noises(
                 max_seed=MAX_SEED,
                 num_samples=num_noises_to_sample,
-                height=config["height"],
-                width=config["width"],
+                height=config["pipeline_call_args"]["height"],
+                width=config["pipeline_call_args"]["width"],
                 dtype=torch_dtype,
                 fn=get_latent_prep_fn(pipeline_name),
             )

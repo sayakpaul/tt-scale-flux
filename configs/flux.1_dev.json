@@ -1,9 +1,20 @@
 {
     "pretrained_model_name_or_path": "black-forest-labs/FLUX.1-dev",
     "torch_dtype": "bf16",
-    "height": 1024,
-    "width": 1024,
-    "max_sequence_length": 512,
-    "guidance_scale": 3.5,
-    "num_inference_steps": 50
+    "pipeline_call_args": {
+        "height": 1024,
+        "width": 1024,
+        "max_sequence_length": 512,
+        "guidance_scale": 3.5,
+        "num_inference_steps": 50
+    },
+    "verifier_args": {
+        "name": "gemini", 
+        "max_new_tokens": 800,
+        "choice_of_metric": "overall_score"
+    },
+    "search_args": {
+        "search_method": "random",
+        "search_rounds": 4
+    }
 }
