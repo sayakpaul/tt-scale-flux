@@ -132,6 +132,9 @@ The output directory should also contain a `config.json`, looking like so:
 
 </details>
 
+> [!NOTE]
+> `max_new_tokens` arg is ignored when using Gemini.
+
 Once the results are generated, process the results by running:
 
 ```bash
@@ -143,7 +146,36 @@ This should output a collage of the best images generated in each search round, 
 By default, the `--batch_size_for_img_gen` is set to 1. To speed up the process (at the expense of more memory),
 this number can be increased.
 
-## Controlling the pipeline checkpoint and `__call__()` args
+## Controlling experiment configurations
+
+Experiment configurations are provided through the `--pipeline_config_path` arg which points to a JSON file. The structure of such JSON files should look like so:
+
+```json
+{
+    "pretrained_model_name_or_path": "black-forest-labs/FLUX.1-dev",
+    "torch_dtype": "bf16",
+    "pipeline_call_args": {
+        "height": 1024,
+        "width": 1024,
+        "max_sequence_length": 512,
+        "guidance_scale": 3.5,
+        "num_inference_steps": 50
+    },
+    "verifier_args": {
+        "name": "gemini", 
+        "max_new_tokens": 800,
+        "choice_of_metric": "overall_score"
+    },
+    "search_args": {
+        "search_method": "random",
+        "search_rounds": 4
+    }
+}
+```
+
+This lets us control the pipeline call arguments, the verifier, and the search process.
+
+### Controlling the pipeline checkpoint and `__call__()` args
 
 This is controlled via the `--pipeline_config_path` CLI args. By default, it uses [`configs/flux.1_dev.json`](./configs/flux.1_dev.json). You can either modify this one or create your own JSON file to experiment with different pipelines. We provide some predefined configs for Flux.1-Dev, PixArt-Sigma, SDXL, and SD v1.5 in the [`configs`](./conf) directory.
 
@@ -152,21 +184,22 @@ The above-mentioned pipelines are already supported. To add your own, you need t
 * [`MODEL_NAME_MAP`](https://github.com/sayakpaul/tt-scale-flux/blob/8e4ba232fbdfeb7a6879049d3b5765f81969ddf3/utils.py#L16)
 * [`get_latent_prep_fn()`](https://github.com/sayakpaul/tt-scale-flux/blob/8e4ba232fbdfeb7a6879049d3b5765f81969ddf3/utils.py#L125C5-L125C23)
 
-## Controlling the "scale"
+### Controlling the "scale"
 
-By default, we use 4 `search_rounds` and start with a noise pool size of 2. Each search round scales up the pool size like so: `2 ** current_seach_round` (with indexing starting from 1). This is where the "scale" in inference-time scaling comes from. You can increase the compute budget by specifying a larger `search_rounds`.
+By default, we use 4 `search_rounds` and start with a noise pool size of 2. Each search round scales up the pool size like so: `2 ** current_seach_round` (with indexing starting from 1). This is where the "scale" in inference-time scaling comes from. You can increase the compute budget by specifying a larger `search_rounds` in the config file.
 
 For each search round, we serialize the images and best datapoint (characterized by the best eval score) in a JSON file.
 
 For other supported CLI args, run `python main.py -h`.
 
-## Controlling the verifier
+### Controlling the verifier
 
-If you don't want to use Gemini, you can use [Qwen2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e) as an option. Simply specify `--verifier_to_use=qwen` for this. Below is a
-complete command that uses SDXL-base:
+If you don't want to use Gemini, you can use [Qwen2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e) as an option. Simply specify `"name"=qwen` under the `"verifier_args"` of the config. Below is a complete command that uses SDXL-base:
 
 ```bash
-python main.py --verifier_to_use="qwen" --pipeline_config_path=configs/sdxl.json --prompt="Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists." --num_prompts=None --search_rounds=6 --max_new_tokens=800
+python main.py \
+  --pipeline_config_path="configs/sdxl.json" \
+  --prompt="Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists."
 ```
 
 <details>
