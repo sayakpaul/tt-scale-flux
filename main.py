@@ -191,7 +191,7 @@ def main():
     else:
         from verifiers.qwen_verifier import QwenVerifier
 
-        verifier = QwenVerifier(use_low_gpu_vram=verifier_args["use_low_gpu_vram"])
+        verifier = QwenVerifier(use_low_gpu_vram=config["use_low_gpu_vram"])
 
     # Main loop: For each search round and each prompt, generate images, verify, and save artifacts.
     for round in range(1, search_rounds + 1):
