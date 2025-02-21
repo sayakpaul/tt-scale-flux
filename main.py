@@ -161,6 +161,7 @@ def main():
         current_datetime,
     )
     os.makedirs(root_dir, exist_ok=True)
+    print(f"Artifacts will be saved to: {root_dir}")
     with open(os.path.join(root_dir, "config.json"), "w") as f:
         json.dump(config, f)
 
