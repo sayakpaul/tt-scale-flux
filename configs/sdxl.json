@@ -1,7 +1,18 @@
 {
     "pretrained_model_name_or_path": "stabilityai/stable-diffusion-xl-base-1.0",
     "torch_dtype": "fp16",
-    "height": 1024,
-    "width": 1024,
-    "negative_prompt": "bad quality, worse quality, degenerate quality" 
+    "pipeline_call_args": {
+        "height": 1024,
+        "width": 1024,
+        "negative_prompt": "bad quality, worse quality, degenerate quality" 
+    },
+    "verifier_args": {
+        "name": "qwen", 
+        "max_new_tokens": 800,
+        "choice_of_metric": "overall_score"
+    },
+    "search_args": {
+        "search_method": "random",
+        "search_rounds": 6
+    }
 }

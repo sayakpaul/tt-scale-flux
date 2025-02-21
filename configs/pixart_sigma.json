@@ -1,6 +1,17 @@
 {
     "pretrained_model_name_or_path": "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS",
     "torch_dtype": "fp16",
-    "height": 1024,
-    "width": 1024
+    "pipeline_call_args": {
+        "height": 1024,
+        "width": 1024
+    },
+    "verifier_args": {
+        "name": "gemini", 
+        "max_new_tokens": 800,
+        "choice_of_metric": "overall_score"
+    },
+    "search_args": {
+        "search_method": "random",
+        "search_rounds": 4
+    }
 }
