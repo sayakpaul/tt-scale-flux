@@ -83,9 +83,9 @@ def sample(
     for o in outputs:
         assert choice_of_metric in o, o.keys()
 
-    assert len(outputs) == len(images_for_prompt), (
-        f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
-    )
+    assert (
+        len(outputs) == len(images_for_prompt)
+    ), f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
 
     results = []
     for json_dict, seed_val, noise in zip(outputs, seeds_used, noises_used):
@@ -95,9 +95,9 @@ def sample(
 
     # Sort by the chosen metric descending and pick top-K.
     for x in results:
-        assert choice_of_metric in x, (
-            f"Expected all dicts in `results` to contain the `{choice_of_metric}` key; got {x.keys()}."
-        )
+        assert (
+            choice_of_metric in x
+        ), f"Expected all dicts in `results` to contain the `{choice_of_metric}` key; got {x.keys()}."
 
     def f(x):
         if isinstance(x[choice_of_metric], dict):
@@ -156,12 +156,13 @@ def main():
     root_dir = os.path.join(
         "output",
         MODEL_NAME_MAP[pipeline_name],
-        config["verifier_to_use"],
-        config["choice_of_metric"],
+        config["verifier_args"]["name"],
+        config["verifier_args"]["choice_of_metric"],
         current_datetime,
     )
     os.makedirs(root_dir, exist_ok=True)
-    json.dump(config, f)
+    with open(os.path.join(root_dir, "config.json"), "w") as f:
+        json.dump(config, f)
 
     # Load prompts from file.
     if args.prompt is None:

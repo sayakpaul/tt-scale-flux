@@ -19,7 +19,14 @@ MODEL_NAME_MAP = {
     "stabilityai/stable-diffusion-xl-base-1.0": "sdxl-base",
     "stable-diffusion-v1-5/stable-diffusion-v1-5": "sd-v1.5",
 }
-MANDATORY_CONFIG_KEYS = ["pretrained_model_name_or_path", "torch_dtype", "pipeline_call_args", "verifier_args", "search_args"]
+MANDATORY_CONFIG_KEYS = [
+    "pretrained_model_name_or_path",
+    "torch_dtype",
+    "pipeline_call_args",
+    "verifier_args",
+    "search_args",
+]
+
 
 def parse_cli_args():
     """
@@ -49,11 +56,12 @@ def parse_cli_args():
         action="store_true",
         help="Flag to use low GPU VRAM mode (moves models between cpu and cuda as needed). Ignored when using Gemini.",
     )
-    
+
     args = parser.parse_args()
 
     validate_args(args)
     return args
+
 
 def validate_args(args):
     if args.prompt and args.num_prompts:
@@ -65,18 +73,25 @@ def validate_args(args):
         config = json.load(f)
 
     config_keys = list(config.keys())
-    assert all(element in config_keys for element in MANDATORY_CONFIG_KEYS), f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
-    
+    assert all(
+        element in config_keys for element in MANDATORY_CONFIG_KEYS
+    ), f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
+
     from verifiers import SUPPORTED_VERIFIERS, SUPPORTED_METRICS
 
     verifier_args = config["verifier_args"]
     supported_verifiers = list(SUPPORTED_VERIFIERS.keys())
     verifier = verifier_args["name"]
-    assert verifier in supported_verifiers, f"Unknown verifier provided: {verifier}, supported ones are: {supported_metrics}."
+    assert (
+        verifier in supported_verifiers
+    ), f"Unknown verifier provided: {verifier}, supported ones are: {supported_metrics}."
 
     supported_metrics = SUPPORTED_METRICS[verifier_args["name"]]
     choice_of_metric = verifier_args["choice_of_metric"]
-    assert choice_of_metric in supported_metrics, f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
+    assert (
+        choice_of_metric in supported_metrics
+    ), f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
+
 
 # Adapted from Diffusers.
 def prepare_latents_for_flux(

@@ -10,9 +10,7 @@ except:
 
 SUPPORTED_VERIFIERS = {
     "qwen": QwenVerifier if QwenVerifier else None,
-    "gemini": GeminiVerifier if GeminiVerifier else None
+    "gemini": GeminiVerifier if GeminiVerifier else None,
 }
 
-SUPPORTED_METRICS = {
-    k: getattr(v, "SUPPORTED_METRIC_CHOICES", None) for k, v in SUPPORTED_VERIFIERS.items()
-}
+SUPPORTED_METRICS = {k: getattr(v, "SUPPORTED_METRIC_CHOICES", None) for k, v in SUPPORTED_VERIFIERS.items()}
