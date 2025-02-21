@@ -6,9 +6,16 @@ import numpy as np
 import torch
 from diffusers import DiffusionPipeline
 from tqdm.auto import tqdm
-import copy
 
-from utils import prompt_to_filename, get_noises, TORCH_DTYPE_MAP, get_latent_prep_fn, parse_cli_args, MODEL_NAME_MAP
+from utils import (
+    generate_neighbors,
+    prompt_to_filename,
+    get_noises,
+    TORCH_DTYPE_MAP,
+    get_latent_prep_fn,
+    parse_cli_args,
+    MODEL_NAME_MAP,
+)
 
 # Non-configurable constants
 TOPK = 1  # Always selecting the top-1 noise for the next round
@@ -117,6 +124,7 @@ def sample(
         "search_round": search_round,
         "num_noises": len(noises),
         "best_noise_seed": topk_scores[0]["seed"],
+        "best_noise": topk_scores[0]["noise"],
         "best_score": topk_scores[0][choice_of_metric],
         "choice_of_metric": choice_of_metric,
         "best_img_path": best_img_path,
@@ -124,65 +132,59 @@ def sample(
     # Save the best config JSON file alongside the images.
     best_json_filename = best_img_path.replace(".png", ".json")
     with open(best_json_filename, "w") as f:
-        json.dump(datapoint, f, indent=4)
+        datapoint_cp = datapoint.copy()
+        datapoint_cp.pop("noise")
+        json.dump(datapoint_cp, f, indent=4)
     return datapoint
 
 
 @torch.no_grad()
 def main():
-    """
-    Main function:
-      - Parses CLI arguments.
-      - Creates an output directory based on verifier and current datetime.
-      - Loads prompts.
-      - Loads the image-generation pipeline.
-      - Loads the verifier model.
-      - Runs several search rounds where for each prompt a pool of random noises is generated,
-        candidate images are produced and verified, and the best noise is chosen.
-    """
+    # === Load configuration and CLI arguments ===
     args = parse_cli_args()
-
-    # Build a config dictionary for parameters that need to be passed around.
     with open(args.pipeline_config_path, "r") as f:
         config = json.load(f)
     config.update(vars(args))
 
-    search_rounds = config["search_args"]["search_rounds"]
+    search_args = config["search_args"]
+    search_rounds = search_args["search_rounds"]
     num_prompts = config["num_prompts"]
 
-    # Create a root output directory: output/{verifier_to_use}/{current_datetime}
+    # === Create output directory ===
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
     pipeline_name = config.pop("pretrained_model_name_or_path")
-    root_dir = os.path.join(
+    verifier_name = config["verifier_args"]["name"]
+    choice_of_metric = config["verifier_args"]["choice_of_metric"]
+    output_dir = os.path.join(
         "output",
         MODEL_NAME_MAP[pipeline_name],
-        config["verifier_args"]["name"],
-        config["verifier_args"]["choice_of_metric"],
+        verifier_name,
+        choice_of_metric,
         current_datetime,
     )
-    os.makedirs(root_dir, exist_ok=True)
-    print(f"Artifacts will be saved to: {root_dir}")
-    with open(os.path.join(root_dir, "config.json"), "w") as f:
-        json.dump(config, f)
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"Artifacts will be saved to: {output_dir}")
+    with open(os.path.join(output_dir, "config.json"), "w") as f:
+        json.dump(config, f, indent=4)
 
-    # Load prompts from file.
+    # === Load prompts ===
     if args.prompt is None:
         with open("prompts_open_image_pref_v1.txt", "r", encoding="utf-8") as f:
-            prompts = [line.strip() for line in f.readlines() if line.strip()]
+            prompts = [line.strip() for line in f if line.strip()]
         if num_prompts != "all":
             prompts = prompts[:num_prompts]
-        print(f"Using {len(prompts)} prompt(s).")
     else:
         prompts = [args.prompt]
+    print(f"Using {len(prompts)} prompt(s).")
 
-    # Set up the image-generation pipeline (on the first GPU if available).
+    # === Set up the image-generation pipeline ===
     torch_dtype = TORCH_DTYPE_MAP[config.pop("torch_dtype")]
     pipe = DiffusionPipeline.from_pretrained(pipeline_name, torch_dtype=torch_dtype)
-    if not config["use_low_gpu_vram"]:
+    if not config.get("use_low_gpu_vram", False):
         pipe = pipe.to("cuda:0")
     pipe.set_progress_bar_config(disable=True)
 
-    # Load the verifier model.
+    # === Load verifier model ===
     verifier_args = config["verifier_args"]
     if verifier_args["name"] == "gemini":
         from verifiers import GeminiVerifier
@@ -191,32 +193,76 @@ def main():
     else:
         from verifiers.qwen_verifier import QwenVerifier
 
-        verifier = QwenVerifier(use_low_gpu_vram=config["use_low_gpu_vram"])
+        verifier = QwenVerifier(use_low_gpu_vram=config.get("use_low_gpu_vram", False))
 
-    # Main loop: For each search round and each prompt, generate images, verify, and save artifacts.
-    for round in range(1, search_rounds + 1):
-        print(f"\n=== Round: {round} ===")
-        num_noises_to_sample = 2**round  # scale noise pool.
+    # For zero-order search, we store the best datapoint per prompt.
+    best_datapoint_for_prompt = {}
+
+    # === Main loop: For each search round and each prompt ===
+    for search_round in range(1, search_rounds + 1):
+        print(f"\n=== Round: {search_round} ===")
+        # For non-zero-order, the noise pool scales with the round.
+        num_noises_to_sample = 2**search_round if search_args["search_method"] != "zero-order" else 1
+
         for prompt in tqdm(prompts, desc="Sampling prompts"):
-            noises = get_noises(
-                max_seed=MAX_SEED,
-                num_samples=num_noises_to_sample,
-                height=config["pipeline_call_args"]["height"],
-                width=config["pipeline_call_args"]["width"],
-                dtype=torch_dtype,
-                fn=get_latent_prep_fn(pipeline_name),
-            )
-            print(f"Number of noise samples: {len(noises)}")
-            datapoint_for_current_round = sample(
+            # --- Generate noise pool ---
+            if search_args["search_method"] != "zero-order":
+                # Standard noise sampling.
+                noises = get_noises(
+                    max_seed=MAX_SEED,
+                    num_samples=num_noises_to_sample,
+                    height=config["pipeline_call_args"]["height"],
+                    width=config["pipeline_call_args"]["width"],
+                    dtype=torch_dtype,
+                    fn=get_latent_prep_fn(pipeline_name),
+                )
+            elif search_args["search_method"] == "zero-order":
+                if search_round == 1:
+                    # First round: sample initial noise(s)
+                    noises = get_noises(
+                        max_seed=MAX_SEED,
+                        num_samples=num_noises_to_sample,
+                        height=config["pipeline_call_args"]["height"],
+                        width=config["pipeline_call_args"]["width"],
+                        dtype=torch_dtype,
+                        fn=get_latent_prep_fn(pipeline_name),
+                    )
+                else:
+                    # Subsequent rounds: use the best noise from the current round.
+                    prev_dp = best_datapoint_for_prompt[prompt]
+                    # Note: assuming the key is "best_noise_seed" (fixing the typo "seeed").
+                    noises = {int(prev_dp["best_noise_seed"]): prev_dp["best_noise"]}
+
+                # --- Process the single noise to generate neighbors ---
+                # Extract the base noise and its seed.
+                base_seed, base_noise = next(iter(noises.items()))
+                # Generate neighbors from the base noise (after squeezing if needed).
+                neighbors = generate_neighbors(base_noise.squeeze(0))
+                # Concatenate the base noise with its neighbors.
+                neighbors_and_noise = torch.cat([base_noise, neighbors], dim=0)
+                # Build a new dictionary mapping updated seeds to each noise.
+                new_noises = {}
+                for i, noise_tensor in enumerate(neighbors_and_noise):
+                    new_noises[base_seed + i] = noise_tensor
+                noises = new_noises
+
+            print(f"Number of noise samples for prompt '{prompt}': {len(noises)}")
+
+            # --- Sampling, verifying, and saving artifacts ---
+            datapoint = sample(
                 noises=noises,
                 prompt=prompt,
-                search_round=round,
+                search_round=search_round,
                 pipe=pipe,
                 verifier=verifier,
                 topk=TOPK,
-                root_dir=root_dir,
+                root_dir=output_dir,
                 config=config,
             )
+
+            # Update the best noise for zero-order search.
+            if search_args["search_method"] == "zero-order":
+                best_datapoint_for_prompt[prompt] = datapoint
 
 
 if __name__ == "__main__":
