@@ -263,6 +263,32 @@ The verifier prompt that is used during grading/verification is specified in [th
 the paper (Inference-Time Scaling for Diffusion Models beyond Scaling Denoising Steps). You are welcome to 
 experiment with a different prompt.
 
+### Controlling search
+
+You can configure search related arguments through `search_args` in the configuration file. Currently, "random search" and "zero-order search" are supported. The default configurations provided under [`configs/`](./configs/)
+are all for random search.
+
+Below is a configuration for zero-order search:
+
+```json
+"search_args": {
+  "search_method": "zero-order",
+  "search_rounds": 4,
+  "threshold": 0.95,
+  "num_neighbors": 4
+}
+```
+
+<details>
+<summary>For details about the parameters</summary>
+
+* `threshold`: threshold to use for filtering out neighbor candidates from the base noise
+* `num_neighbors`: number of neighbors to generate from the base noise
+
+</details>
+
+If the neighbors do not improve the current search round results, we simply reject the round.
+
 ## More results
 
 <details>
