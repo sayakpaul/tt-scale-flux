@@ -205,7 +205,7 @@ def main():
 
         verifier = QwenVerifier(use_low_gpu_vram=config.get("use_low_gpu_vram", False))
 
-    # === Main loop: For each search round and each prompt ===
+    # === Main loop: For each prompt and each search round ===
     for prompt in tqdm(prompts, desc="Processing prompts"):
         search_round = 1
 
