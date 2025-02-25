@@ -230,8 +230,8 @@ def main():
                     should_regenate_noise = False
 
             # For subsequent rounds in zero-order: use best noise from previous round.
-            # This happens ONLY if there was an improvement with the neighbors, otherwise
-            # round is progressed.
+            # This happens ONLY if there was an improvement with the neighbors in the
+            # previous round, otherwise round is progressed with newly sampled noise.
             if should_regenate_noise:
                 # Standard noise sampling.
                 if search_method == "zero-order" and search_round != 1:
@@ -250,13 +250,6 @@ def main():
                         print("Using the best noise from the previous round.")
                         prev_dp = best_datapoint_per_round[previous_round]
                         noises = {int(prev_dp["best_noise_seed"]): prev_dp["best_noise"]}
-                    else:
-                        print(
-                            f"No improvement in neighbors found for prompt '{prompt}' at round {search_round}. "
-                            "Rejecting this round and progressing to the next."
-                        )
-                        search_round += 1
-                        continue
 
             if search_method == "zero-order":
                 # Process the noise to generate neighbors.

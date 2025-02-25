@@ -287,7 +287,10 @@ Below is a configuration for zero-order search:
 
 </details>
 
-If the neighbors do not improve the current search round results, we simply reject the round.
+> [!NOTE] 
+> If the neighbors in the current round do not improve the current search round results, 
+we simply reject the round, starting the next round with a new base nosie. In case of 
+worse neighbors, we don't serialize the artifacts.
 
 ## More results
 
