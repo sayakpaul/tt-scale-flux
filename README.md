@@ -9,6 +9,10 @@ Simple re-implementation of inference-time scaling Flux.1-Dev as introduced in [
 
 **Updates**
 
+🔥 25/02/2025: Support for zero-order search has been added [in this PR](https://github.com/sayakpaul/tt-scale-flux/pull/14). Many thanks to Willis Ma for the reviews. Check out [this section](#controlling-search) for more details.
+
+🔥 21/02/2025: Better configuration management for more flexibility, free the `argparse` madness.
+
 🔥 16/02/2025: Support for batched image generation has been added [in this PR](https://github.com/sayakpaul/tt-scale-flux/pull/9). It speeds up the total time but consumes more memory.
 
 🔥 15/02/2025: Support for structured generation with Qwen2.5 has been added (using `outlines` and `pydantic`) in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/6).
