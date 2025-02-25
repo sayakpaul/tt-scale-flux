@@ -249,3 +249,27 @@ def recover_json_from_output(output: str):
     end = output.rfind("}") + 1
     json_part = output[start:end]
     return json.loads(json_part)
+
+
+def serialize_artifacts(
+    images_info: list[tuple[int, torch.Tensor, Image.Image, str]],
+    prompt: str,
+    search_round: int,
+    root_dir: str,
+    datapoint: dict,
+) -> None:
+    """
+    Serialize generated images and the best datapoint JSON configuration.
+    """
+    # Save each image.
+    for seed, noise, image, filename in images_info:
+        image.save(filename)
+
+    # Save the best datapoint config as a JSON file.
+    best_json_filename = datapoint["best_img_path"].replace(".png", ".json")
+    with open(best_json_filename, "w") as f:
+        # Remove the noise tensor (or any non-serializable object) from the JSON.
+        datapoint_copy = datapoint.copy()
+        datapoint_copy.pop("best_noise", None)
+        json.dump(datapoint_copy, f, indent=4)
+    print(f"Serialized JSON configuration and images to {root_dir}.")

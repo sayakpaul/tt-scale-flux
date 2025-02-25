@@ -14,6 +14,7 @@ from utils import (
     TORCH_DTYPE_MAP,
     get_latent_prep_fn,
     parse_cli_args,
+    serialize_artifacts,
     MODEL_NAME_MAP,
 )
 
@@ -35,7 +36,7 @@ def sample(
     """
     For a given prompt, generate images using all provided noises in batches,
     score them with the verifier, and select the top-K noise.
-    The images and JSON artifacts are saved under `root_dir`.
+    The images and JSON artifacts are serialized via `serialize_artifacts`.
     """
     use_low_gpu_vram = config.get("use_low_gpu_vram", False)
     batch_size_for_img_gen = config.get("batch_size_for_img_gen", 1)
@@ -48,6 +49,7 @@ def sample(
     images_for_prompt = []
     noises_used = []
     seeds_used = []
+    images_info = []  # Will collect (seed, noise, image, filename) tuples for serialization.
     prompt_filename = prompt_to_filename(prompt)
 
     # Convert the noises dictionary into a list of (seed, noise) tuples.
@@ -63,7 +65,7 @@ def sample(
 
         if use_low_gpu_vram and verifier_to_use != "gemini":
             pipe = pipe.to("cuda:0")
-        print(f"Generating images for batch with seeds: {[s for s in seeds_batch]}.")
+        print(f"Generating images for batch with seeds: {list(seeds_batch)}.")
 
         # Create a batched prompt list and stack the latents.
         batched_prompts = [prompt] * len(noises_batch)
@@ -74,12 +76,12 @@ def sample(
         if use_low_gpu_vram and verifier_to_use != "gemini":
             pipe = pipe.to("cpu")
 
-        # Iterate over the batch and save the images.
+        # Collect the images and corresponding info.
         for seed, noise, image, filename in zip(seeds_batch, noises_batch, batch_images, filenames_batch):
             images_for_prompt.append(image)
             noises_used.append(noise)
             seeds_used.append(seed)
-            image.save(filename)
+            images_info.append((seed, noise, image, filename))
 
     # Prepare verifier inputs and perform inference.
     verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
@@ -97,17 +99,12 @@ def sample(
 
     results = []
     for json_dict, seed_val, noise in zip(outputs, seeds_used, noises_used):
-        # Attach the noise tensor so we can select top-K.
+        # Merge verifier outputs with noise info.
         merged = {**json_dict, "noise": noise, "seed": seed_val}
         results.append(merged)
 
-    # Sort by the chosen metric descending and pick top-K.
-    for x in results:
-        assert choice_of_metric in x, (
-            f"Expected all dicts in `results` to contain the `{choice_of_metric}` key; got {x.keys()}."
-        )
-
     def f(x):
+        # If the verifier output is a dict, assume it contains a "score" key.
         if isinstance(x[choice_of_metric], dict):
             return x[choice_of_metric]["score"]
         return x[choice_of_metric]
@@ -131,22 +128,21 @@ def sample(
         "best_img_path": best_img_path,
     }
 
-    # Check if the neighbors have any improvements.
-    if search_args and search_args.get("search_method") == "zero-order":
-        # `first_score` corresponds to the base noise.
+    # Check if the neighbors have any improvements (zero-order only).
+    search_method = search_args.get("search_method", "random") if search_args else "random"
+    if search_args and search_method == "zero-order":
         first_score = f(results[0])
         neighbors_with_better_score = any(f(item) > first_score for item in results[1:])
-        if not neighbors_with_better_score:
-            datapoint["neighbors_no_improvement"] = True
-        else:
-            datapoint["neighbors_no_improvement"] = False
+        datapoint["neighbors_improvement"] = neighbors_with_better_score
 
-    # Save the best config JSON file alongside the images.
-    best_json_filename = best_img_path.replace(".png", ".json")
-    with open(best_json_filename, "w") as f:
-        datapoint_cp = datapoint.copy()
-        datapoint_cp.pop("best_noise")
-        json.dump(datapoint_cp, f, indent=4)
+    # Serialize.
+    if search_method == "zero-order":
+        if datapoint["neighbors_improvement"]:
+            serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint)
+        else:
+            print("Skipping serialization as there was no improvement in this round.")
+    elif search_method == "random":
+        serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint)
 
     return datapoint
 
@@ -161,6 +157,7 @@ def main():
 
     search_args = config["search_args"]
     search_rounds = search_args["search_rounds"]
+    search_method = search_args.get("search_method", "random")
     num_prompts = config["num_prompts"]
 
     # === Create output directory ===
@@ -208,30 +205,37 @@ def main():
 
         verifier = QwenVerifier(use_low_gpu_vram=config.get("use_low_gpu_vram", False))
 
-    # For zero-order search, we store the best datapoint per prompt.
-    best_datapoint_for_prompt = {}
-
     # === Main loop: For each search round and each prompt ===
-    search_round = 1
-    search_method = search_args.get("search_method", "random")
-    tolerance_count = 0  # Only used for zero-order
+    for prompt in tqdm(prompts, desc="Processing prompts"):
+        search_round = 1
 
-    while search_round <= search_rounds:
-        # Determine the number of noise samples.
-        if search_method == "zero-order":
-            num_noises_to_sample = 1
-        else:
-            num_noises_to_sample = 2**search_round
+        # For zero-order search, we store the best datapoint per round.
+        best_datapoint_per_round = {}
 
-        print(f"\n=== Round: {search_round} (tolerance_count: {tolerance_count}) ===")
+        while search_round <= search_rounds:
+            # Determine the number of noise samples.
+            if search_method == "zero-order":
+                num_noises_to_sample = 1
+            else:
+                num_noises_to_sample = 2**search_round
 
-        # Track if any prompt improved in this round.
-        round_improved = False
+            print(f"\n=== Prompt: {prompt} | Round: {search_round} ===")
 
-        for prompt in tqdm(prompts, desc="Sampling prompts"):
             # --- Generate noise pool ---
-            if search_method != "zero-order" or search_round == 1:
-                # Standard noise sampling
+            should_regenate_noise = True
+            previous_round = search_round - 1
+            if previous_round in best_datapoint_per_round:
+                was_improvement = best_datapoint_per_round[previous_round]["neighbors_improvement"]
+                if was_improvement:
+                    should_regenate_noise = False
+
+            # For subsequent rounds in zero-order: use best noise from previous round.
+            # This happens ONLY if there was an improvement with the neighbors, otherwise
+            # round is progressed.
+            if should_regenate_noise:
+                # Standard noise sampling.
+                if search_method == "zero-order" and search_round != 1:
+                    print("Regenerating base noise because the previous round was rejected.")
                 noises = get_noises(
                     max_seed=MAX_SEED,
                     num_samples=num_noises_to_sample,
@@ -241,9 +245,18 @@ def main():
                     fn=get_latent_prep_fn(pipeline_name),
                 )
             else:
-                # For subsequent rounds in zero-order: use best noise from previous round.
-                prev_dp = best_datapoint_for_prompt[prompt]
-                noises = {int(prev_dp["best_noise_seed"]): prev_dp["best_noise"]}
+                if best_datapoint_per_round[previous_round]:
+                    if best_datapoint_per_round[previous_round]["neighbors_improvement"]:
+                        print("Using the best noise from the previous round.")
+                        prev_dp = best_datapoint_per_round[previous_round]
+                        noises = {int(prev_dp["best_noise_seed"]): prev_dp["best_noise"]}
+                    else:
+                        print(
+                            f"No improvement in neighbors found for prompt '{prompt}' at round {search_round}. "
+                            "Rejecting this round and progressing to the next."
+                        )
+                        search_round += 1
+                        continue
 
             if search_method == "zero-order":
                 # Process the noise to generate neighbors.
@@ -273,24 +286,10 @@ def main():
             )
 
             if search_method == "zero-order":
-                # Update the best noise for zero-order.
-                best_datapoint_for_prompt[prompt] = datapoint
+                # Update the best datapoint for zero-order.
+                if datapoint["neighbors_improvement"]:
+                    best_datapoint_per_round[search_round] = datapoint
 
-                # If there was an improvement, flag this round as improved.
-                if not datapoint.get("neighbors_no_improvement", False):
-                    round_improved = True
-
-        # --- Decide on round incrementation ---
-        if search_method == "zero-order":
-            if round_improved:
-                tolerance_count = 0
-                search_round += 1
-            else:
-                tolerance_count += 1
-                if tolerance_count >= search_args["search_round_tolerance"]:
-                    tolerance_count = 0
-                    search_round += 1
-        else:
             search_round += 1
 
 
