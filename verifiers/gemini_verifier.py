@@ -6,14 +6,12 @@ import os
 from typing import Union
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-script_dir = os.path.dirname(os.path.abspath(__file__))
-
 import sys
+from base_verifier import BaseVerifier
 
 sys.path.append("..")
 
-from utils import load_verifier_prompt, convert_to_bytes
+from utils import convert_to_bytes
 
 
 class Score(typing.TypedDict):
@@ -30,7 +28,7 @@ class Grading(typing.TypedDict):
     overall_score: Score
 
 
-class GeminiVerifier:
+class GeminiVerifier(BaseVerifier):
     SUPPORTED_METRIC_CHOICES = [
         "accuracy_to_prompt",
         "creativity_and_originality",
@@ -40,13 +38,14 @@ class GeminiVerifier:
         "overall_score",
     ]
 
-    def __init__(self, seed=1994, model_name="gemini-2.0-flash"):
+    def __init__(self, seed=1994, model_name="gemini-2.0-flash", **kwargs):
+        super().__init__(seed=seed, prompt_path=kwargs.pop("prompt_path", None))
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        system_instruction = load_verifier_prompt(os.path.join(script_dir, "verifier_prompt.txt"))
         self.generation_config = types.GenerateContentConfig(
-            system_instruction=system_instruction,
+            system_instruction=self.verifier_prompt,
             response_mime_type="application/json",
             response_schema=list[Grading],
+            max_output_tokens=kwargs.pop("max_new_tokens", None),
             seed=seed,
         )
         self.model_name = model_name

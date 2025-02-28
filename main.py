@@ -17,6 +17,7 @@ from utils import (
     serialize_artifacts,
     MODEL_NAME_MAP,
 )
+from verifiers import SUPPORTED_VERIFIERS
 
 # Non-configurable constants
 TOPK = 1  # Always selecting the top-1 noise for the next round
@@ -196,14 +197,11 @@ def main():
 
     # === Load verifier model ===
     verifier_args = config["verifier_args"]
-    if verifier_args["name"] == "gemini":
-        from verifiers import GeminiVerifier
+    verifier_cls = SUPPORTED_VERIFIERS.get(verifier_args["name"])
+    if verifier_cls is None:
+        raise ValueError("Verifier class evaluated to be `None`. Make sure the dependencies are installed properly.")
 
-        verifier = GeminiVerifier()
-    else:
-        from verifiers.qwen_verifier import QwenVerifier
-
-        verifier = QwenVerifier(use_low_gpu_vram=config.get("use_low_gpu_vram", False))
+    verifier = verifier_cls(**verifier_args)
 
     # === Main loop: For each prompt and each search round ===
     for prompt in tqdm(prompts, desc="Processing prompts"):

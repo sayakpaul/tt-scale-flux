@@ -23,7 +23,7 @@ scaling in [this repo](https://github.com/YRIKKA/ComfyUI-InferenceTimeScaling). 
 
 🔥 16/02/2025: Support for batched image generation has been added [in this PR](https://github.com/sayakpaul/tt-scale-flux/pull/9). It speeds up the total time but consumes more memory.
 
-🔥 15/02/2025: Support for structured generation with Qwen2.5 has been added (using `outlines` and `pydantic`) in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/6).
+🔥 15/02/2025: Support for structured generation with Qwen2.5 VL has been added (using `outlines` and `pydantic`) in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/6).
 
 🔥 15/02/2025: Support to load other pipelines has been added in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/5)! [Result section](#more-results) has been updated, too.
 
@@ -206,7 +206,7 @@ For other supported CLI args, run `python main.py -h`.
 
 ### Controlling the verifier
 
-If you don't want to use Gemini, you can use [Qwen2.5](https://huggingface.co/collections/Qwen/qwen25-66e81a666513e518adb90d9e) as an option. Simply specify `"name"=qwen` under the `"verifier_args"` of the config. Below is a complete command that uses SDXL-base:
+If you don't want to use Gemini, you can use [Qwen2.5 VL](https://huggingface.co/collections/Qwen/qwen25-vl-6795ffac22b334a837c0f9a5) as an option. Simply specify `"name"=qwen` under the `"verifier_args"` of the config. Below is a complete command that uses SDXL-base:
 
 ```bash
 python main.py \
@@ -255,12 +255,24 @@ python main.py \
 > [!IMPORTANT]  
 > This setup was tested on 2 H100s. If you want to do this on a single GPU, specify `--use_low_gpu_vram`.
 
+When using Qwen2.5 VL, by default, we use use this checkpoint: [`Qwen/Qwen2.5-VL-7B-Instruct`](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct). However, you can pass other supported checkpoints too. Specify the `model_name`
+parameter under `verifier_args`:
+
+```json
+"verifier_args": {
+  "name": "qwen", 
+  "model_name": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "max_new_tokens": 800,
+  "choice_of_metric": "overall_score"
+}
+```
+
 You can also bring in your own verifier by implementing a so-called `Verifier` class following the structure of either of `GeminiVerifier` or `QwenVerifier`. You will then have to make adjustments to the following places:
 
 * [Scoring](https://github.com/sayakpaul/tt-scale-flux/blob/c654bc066171aee9c765fa42a322f65415529a77/main.py#L135)
 * [Sorting](https://github.com/sayakpaul/tt-scale-flux/blob/c654bc066171aee9c765fa42a322f65415529a77/main.py#L163)
 
-By default, we use "overall_score" as the metric to obtain the best samples in each search round. You can change it by specifying `--choice_of_metric`. Supported values are: 
+By default, we use "overall_score" as the metric to obtain the best samples in each search round. You can change it by specifying `choice_of_metric` in the `verifier_args`. The list of supported values for `choice_metric` is verifier-dependent. Supported values for the Gemini and Qwen verifiers are: 
 
 * "accuracy_to_prompt"
 * "creativity_and_originality"
@@ -269,11 +281,9 @@ By default, we use "overall_score" as the metric to obtain the best samples in e
 * "emotional_or_thematic_resonance"
 * "overall_score"
 
-If you're experimenting with a new verifier, you can relax these choices.
-
 The verifier prompt that is used during grading/verification is specified in [this file](./verifiers/verifier_prompt.txt). The prompt is a slightly modified version of the one specified in the Figure 16 of
 the paper (Inference-Time Scaling for Diffusion Models beyond Scaling Denoising Steps). You are welcome to 
-experiment with a different prompt.
+experiment with a different prompt. Set the `prompt_path` under `verifier_args`.
 
 ### Controlling search
 
