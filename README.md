@@ -211,7 +211,8 @@ If you don't want to use Gemini, you can use [Qwen2.5 VL](https://huggingface.co
 ```bash
 python main.py \
   --pipeline_config_path="configs/sdxl.json" \
-  --prompt="Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists."
+  --prompt="Photo of an athlete cat explaining it’s latest scandal at a press conference to journalists." \
+  --num_prompts=None
 ```
 
 <details>

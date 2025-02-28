@@ -136,7 +136,7 @@ class QwenVerifier(BaseVerifier):
 
     def _prepare_model_kwargs(self, **kwargs):
         model_kwargs = {"torch_dtype": torch.bfloat16}
-        use_low_gpu_vram = kwargs.get(use_low_gpu_vram, False)
+        use_low_gpu_vram = kwargs.get("use_low_gpu_vram", False)
         if not use_low_gpu_vram:
             model_kwargs.update({"attn_implementation": "flash_attention_2"})
         else:
