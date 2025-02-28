@@ -1,6 +1,6 @@
 try:
     from .gemini_verifier import GeminiVerifier
-except:
+except Exception as e:
     GeminiVerifier = None
 
 try:

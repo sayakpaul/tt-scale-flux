@@ -7,7 +7,7 @@ from typing import Union
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import sys
-from base_verifier import BaseVerifier
+from .base_verifier import BaseVerifier
 
 sys.path.append("..")
 

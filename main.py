@@ -87,10 +87,7 @@ def sample(
     # Prepare verifier inputs and perform inference.
     verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
     print("Scoring with the verifier.")
-    outputs = verifier.score(
-        inputs=verifier_inputs,
-        max_new_tokens=max_new_tokens,  # Ignored when using Gemini for now.
-    )
+    outputs = verifier.score(inputs=verifier_inputs)
     for o in outputs:
         assert choice_of_metric in o, o.keys()
 
