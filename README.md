@@ -277,8 +277,9 @@ experiment with a different prompt.
 
 ### Controlling search
 
-You can configure search related arguments through `search_args` in the configuration file. Currently, "random search" and "zero-order search" are supported. The default configurations provided under [`configs/`](./configs/)
-are all for random search.
+You can configure search related arguments through `search_args` in the configuration file. Currently,
+"random search" and "zero-order search" are supported. The default configurations provided
+under [`configs/`](./configs/) are all for random search.
 
 Below is a configuration for zero-order search:
 
