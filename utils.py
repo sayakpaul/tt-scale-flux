@@ -1,6 +1,7 @@
 import torch
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers import FluxPipeline
+import base64
 import re
 import hashlib
 from typing import Dict
@@ -236,12 +237,16 @@ def load_image(path_or_url: Union[str, Image.Image]) -> Image.Image:
     return Image.open(path_or_url)
 
 
-def convert_to_bytes(path_or_url: Union[str, Image.Image]) -> bytes:
+def convert_to_bytes(path_or_url: Union[str, Image.Image], b64_encode: bool = False) -> bytes:
     """Load an image from a path or URL and convert it to bytes."""
     image = load_image(path_or_url).convert("RGB")
     image_bytes_io = io.BytesIO()
     image.save(image_bytes_io, format="PNG")
-    return image_bytes_io.getvalue()
+    image_bytes = image_bytes_io.getvalue()
+    if not b64_encode:
+        return image_bytes
+    else:
+        return base64.b64encode(image_bytes).decode("utf-8")
 
 
 def recover_json_from_output(output: str):
