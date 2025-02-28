@@ -1,6 +1,11 @@
 # tt-scale-flux
 
-Simple re-implementation of inference-time scaling Flux.1-Dev as introduced in [Inference-Time Scaling for Diffusion Models beyond Scaling Denoising Steps](https://arxiv.org/abs/2501.09732) by Ma et al. We implement the random search strategy to scale the inference compute budget.
+Initially, the repo started out as:
+
+> Simple re-implementation of inference-time scaling Flux.1-Dev as introduced in [Inference-Time Scaling for Diffusion Models beyond Scaling Denoising Steps](https://arxiv.org/abs/2501.09732) by Ma et al. We implement
+the random search strategy to scale the inference compute budget.
+
+But it's been growing now! Check out the rest of the README to know more 🤗
 
 <div align="center">
 <img src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/collage_Photo_of_an_athlete_cat_explaining_it_s_latest_scandal_at_a_press_conference_to_journ_i@1-4.png" width=600/>
@@ -8,6 +13,9 @@ Simple re-implementation of inference-time scaling Flux.1-Dev as introduced in [
 </div>
 
 **Updates**
+
+🔥 27/02/2025: [MaximClouser](https://github.com/MaximClouser) implemented a ComfyUI node for inference-time
+scaling in [this repo](https://github.com/YRIKKA/ComfyUI-InferenceTimeScaling). Check it out!
 
 🔥 25/02/2025: Support for zero-order search has been added [in this PR](https://github.com/sayakpaul/tt-scale-flux/pull/14). Many thanks to Willis Ma for the reviews. Check out [this section](#controlling-search) for more details.
 
