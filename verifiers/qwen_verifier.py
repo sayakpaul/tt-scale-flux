@@ -6,7 +6,7 @@ import gc
 import torch
 from PIL import Image
 from typing import Union
-import os 
+import os
 import sys
 
 current_dir = os.path.dirname(os.path.abspath(__file__))

@@ -8,13 +8,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import sys
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.abspath(os.path.join(current_dir, '..'))
+root_dir = os.path.abspath(os.path.join(current_dir, ".."))
 
 sys.path.insert(0, current_dir)
 sys.path.insert(0, root_dir)
 
 from base_verifier import BaseVerifier
 from utils import convert_to_bytes
+
 
 class Score(BaseModel):
     score: int
@@ -39,7 +40,7 @@ class OpenAIVerifier(BaseVerifier):
         "emotional_or_thematic_resonance",
         "overall_score",
     ]
-    
+
     def __init__(self, seed=1994, model_name="gpt-4o-2024-11-20", **kwargs):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         super().__init__(seed=seed, prompt_path=kwargs.pop("prompt_path", None))
