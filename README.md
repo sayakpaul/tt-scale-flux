@@ -14,7 +14,7 @@ But it's been growing now! Check out the rest of the README to know more 🤗
 
 **Updates**
 
-🔥 01/03/2025: OpenAIVerifier was added in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/16). Specify "openai" in the `name` under `verifier_args`.
+🔥 01/03/2025: OpenAIVerifier was added in [this PR](https://github.com/sayakpaul/tt-scale-flux/pull/16). Specify "openai" in the `name` under `verifier_args`. Thanks to [zhuole1025](https://github.com/zhuole1025) for contributing this!
 
 🔥 27/02/2025: [MaximClouser](https://github.com/MaximClouser) implemented a ComfyUI node for inference-time
 scaling in [this repo](https://github.com/YRIKKA/ComfyUI-InferenceTimeScaling). Check it out!
