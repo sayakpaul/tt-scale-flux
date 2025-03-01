@@ -3,14 +3,18 @@ from pydantic import BaseModel
 import os
 from typing import Union
 from PIL import Image
+import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import sys
-from .base_verifier import BaseVerifier
 
-sys.path.append("..")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.abspath(os.path.join(current_dir, '..'))
 
+sys.path.insert(0, current_dir)
+sys.path.insert(0, root_dir)
+
+from base_verifier import BaseVerifier
 from utils import convert_to_bytes
-
 
 class Score(BaseModel):
     score: int
@@ -27,8 +31,17 @@ class Grading(BaseModel):
 
 
 class OpenAIVerifier(BaseVerifier):
+    SUPPORTED_METRIC_CHOICES = [
+        "accuracy_to_prompt",
+        "creativity_and_originality",
+        "visual_quality_and_realism",
+        "consistency_and_cohesion",
+        "emotional_or_thematic_resonance",
+        "overall_score",
+    ]
+    
     def __init__(self, seed=1994, model_name="gpt-4o-2024-11-20", **kwargs):
-        self.client = OpenAI(os.getenv("OPENAI_API_KEY"))
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         super().__init__(seed=seed, prompt_path=kwargs.pop("prompt_path", None))
         self.model_name = model_name
         self.seed = seed
@@ -41,7 +54,7 @@ class OpenAIVerifier(BaseVerifier):
 
         for prompt, image in zip(prompts, images):
             # Convert image to base64
-            base64_image = convert_to_bytes(image, base64_image=True)
+            base64_image = convert_to_bytes(image, b64_encode=True)
 
             message = {
                 "role": "user",
@@ -75,3 +88,41 @@ class OpenAIVerifier(BaseVerifier):
                     # Handle exceptions as appropriate.
                     print(f"An error occurred during API call: {e}")
         return results
+
+
+# Define inputs
+if __name__ == "__main__":
+    verifier = OpenAIVerifier()
+    image_urls = [
+        (
+            "realistic photo a shiny black SUV car with a mountain in the background.",
+            "https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/flux-edit-artifacts/assets/car.jpg",
+        ),
+        (
+            "photo a green and funny creature standing in front a lightweight forest.",
+            "https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/flux-edit-artifacts/assets/green_creature.jpg",
+        ),
+    ]
+
+    prompts = []
+    images = []
+    for text, path_or_url in image_urls:
+        prompts.append(text)
+        images.append(path_or_url)
+
+    # # Single image
+    # response = client.models.generate_content(
+    #     model='gemini-2.0-flash',
+    #     contents=[
+    #         "realistic photo a shiny black SUV car with a mountain in the background.",
+    #         load_image("https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/flux-edit-artifacts/assets/car.jpg")
+    #     ],
+    #     config=generation_config
+    # )
+    inputs = verifier.prepare_inputs(images=images, prompts=prompts)
+    response = verifier.score(inputs)
+
+    with open("results.json", "w") as f:
+        json.dump(response, f)
+
+    print(json.dumps(response, indent=4))

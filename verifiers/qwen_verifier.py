@@ -6,8 +6,13 @@ import gc
 import torch
 from PIL import Image
 from typing import Union
-from .base_verifier import BaseVerifier
+import os 
+import sys
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+
+from base_verifier import BaseVerifier
 
 DEFAULT_QWEN_MODEL_ID = "Qwen/Qwen2.5-VL-7B-Instruct"
 # Optional device map that one can use to let `transformers` share a single GPU and CPU.

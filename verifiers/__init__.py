@@ -4,13 +4,20 @@ except Exception as e:
     GeminiVerifier = None
 
 try:
+    from .openai_verifier import OpenAIVerifier
+except Exception as e:
+    print(f"{e=}")
+    OpenAIVerifier = None
+
+try:
     from .qwen_verifier import QwenVerifier
-except:
+except Exception as e:
     QwenVerifier = None
 
 SUPPORTED_VERIFIERS = {
     "qwen": QwenVerifier if QwenVerifier else None,
     "gemini": GeminiVerifier if GeminiVerifier else None,
+    "openai": OpenAIVerifier if OpenAIVerifier else None,
 }
 
 SUPPORTED_METRICS = {k: getattr(v, "SUPPORTED_METRIC_CHOICES", None) for k, v in SUPPORTED_VERIFIERS.items()}

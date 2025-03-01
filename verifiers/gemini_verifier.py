@@ -3,14 +3,19 @@ from google.genai import types
 import typing_extensions as typing
 import json
 import os
+import sys
 from typing import Union
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import sys
-from .base_verifier import BaseVerifier
 
-sys.path.append("..")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.abspath(os.path.join(current_dir, '..'))
 
+sys.path.insert(0, current_dir)
+sys.path.insert(0, root_dir)
+
+
+from base_verifier import BaseVerifier
 from utils import convert_to_bytes
 
 

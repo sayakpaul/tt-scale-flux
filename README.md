@@ -268,6 +268,9 @@ parameter under `verifier_args`:
 }
 ```
 
+`model_name` is supported for the other non-local verifiers. For example, for the `GeminiVerifier`, you can
+pass any model supported by the Gemini API through `model_name`.
+
 You can also bring in your own verifier by implementing a so-called `Verifier` class following the structure of either of `GeminiVerifier` or `QwenVerifier`. You will then have to make adjustments to the following places:
 
 * [Scoring](https://github.com/sayakpaul/tt-scale-flux/blob/c654bc066171aee9c765fa42a322f65415529a77/main.py#L135)
