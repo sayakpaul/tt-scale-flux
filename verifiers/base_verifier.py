@@ -5,6 +5,8 @@ DEFAULT_VERIFIER_PROMPT_PATH = os.path.join(SCRIPT_DIR, "verifier_prompt.txt")
 
 
 class BaseVerifier:
+    SUPPORTED_METRIC_CHOICES = None
+
     def __init__(self, seed=1994, prompt_path=None):
         prompt_path = prompt_path or DEFAULT_VERIFIER_PROMPT_PATH
         self.seed = seed
