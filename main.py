@@ -1,11 +1,13 @@
 import os
 import json
 from datetime import datetime
-
+from PIL import Image
 import numpy as np
 import torch
 from diffusers import DiffusionPipeline
 from tqdm.auto import tqdm
+import tempfile
+from diffusers.utils import export_to_video
 
 from utils import (
     generate_neighbors,
@@ -16,6 +18,7 @@ from utils import (
     parse_cli_args,
     serialize_artifacts,
     MODEL_NAME_MAP,
+    get_key_frames,
 )
 from verifiers import SUPPORTED_VERIFIERS
 
@@ -42,7 +45,6 @@ def sample(
     use_low_gpu_vram = config.get("use_low_gpu_vram", False)
     batch_size_for_img_gen = config.get("batch_size_for_img_gen", 1)
     verifier_args = config.get("verifier_args")
-    max_new_tokens = verifier_args.get("max_new_tokens", None)
     choice_of_metric = verifier_args.get("choice_of_metric", None)
     verifier_to_use = verifier_args.get("name", "gemini")
     search_args = config.get("search_args", None)
@@ -73,7 +75,11 @@ def sample(
         batched_latents = torch.stack(noises_batch).squeeze(dim=1)
 
         batch_result = pipe(prompt=batched_prompts, latents=batched_latents, **config["pipeline_call_args"])
-        batch_images = batch_result.images
+        if hasattr(batch_result, "images"):
+            batch_images = batch_result.images
+        elif hasattr(batch_result, "frames"):
+            batch_images = [vid for vid in batch_result.frames]
+
         if use_low_gpu_vram and verifier_to_use != "gemini":
             pipe = pipe.to("cpu")
 
@@ -85,7 +91,39 @@ def sample(
             images_info.append((seed, noise, image, filename))
 
     # Prepare verifier inputs and perform inference.
-    verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
+    if isinstance(images_for_prompt[0], Image.Image):
+        verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
+    else:
+        export_args = config.get("export_args", None)
+        if export_args:
+            fps = export_args.get("fps", 24)
+        else:
+            fps = 24
+        temp_vid_paths = []
+        for vid in images_for_prompt:
+            with tempfile.TemporaryFile(suffix=".mp4") as f:
+                export_to_video(vid, f, fps=fps)
+                temp_vid_paths.append(f)
+
+        verifier_inputs = []
+        for vid_path in temp_vid_paths:
+            vid_frames = get_key_frames(vid_path)
+            first = vid_frames[0]
+            mid = None
+            last = None
+            if len(vid_frames) == 2:
+                last = vid_frames[1]
+            elif len(vid_frames) > 2:
+                mid = vid_frames[len(vid_frames) // 2]
+                last = vid_frames[-1]
+            frames = []
+            for idx, frame in enumerate([first, mid, last]):
+                if frame is None:
+                    continue
+                frames.append(frame)
+
+            verifier_inputs.append(verifier.prepare_inputs(images=frames, prompts=[prompt] * len(frames)))
+
     print("Scoring with the verifier.")
     outputs = verifier.score(inputs=verifier_inputs)
     for o in outputs:
@@ -201,6 +239,7 @@ def main():
     verifier = verifier_cls(**verifier_args)
 
     # === Main loop: For each prompt and each search round ===
+    pipeline_call_args = config["pipeline_call_args"]
     for prompt in tqdm(prompts, desc="Processing prompts"):
         search_round = 1
 
@@ -234,10 +273,11 @@ def main():
                 noises = get_noises(
                     max_seed=MAX_SEED,
                     num_samples=num_noises_to_sample,
-                    height=config["pipeline_call_args"]["height"],
-                    width=config["pipeline_call_args"]["width"],
+                    height=pipeline_call_args.pop("height"),
+                    width=pipeline_call_args.pop("width"),
                     dtype=torch_dtype,
                     fn=get_latent_prep_fn(pipeline_name),
+                    **pipeline_call_args,
                 )
             else:
                 if best_datapoint_per_round[previous_round]:

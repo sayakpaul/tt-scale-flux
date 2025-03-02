@@ -1,6 +1,6 @@
 import torch
 from diffusers.utils.torch_utils import randn_tensor
-from diffusers import FluxPipeline
+from diffusers import FluxPipeline, LTXPipeline
 import base64
 import re
 import hashlib
@@ -13,6 +13,7 @@ import argparse
 import io
 import numpy as np
 import torch.nn.functional as F
+from pathlib import Path
 
 
 TORCH_DTYPE_MAP = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
@@ -132,6 +133,33 @@ def prepare_latents_for_flux(
 
 
 # Adapted from Diffusers.
+def prepare_latents_ltx(
+    batch_size: int = 1,
+    num_channels_latents: int = 128,
+    height: int = 512,
+    width: int = 704,
+    num_frames: int = 161,
+    dtype: torch.dtype = None,
+    device: torch.device = None,
+    generator: torch.Generator = None,
+) -> torch.Tensor:
+    vae_spatial_compression_ratio = 32
+    vae_temporal_compression_ratio = 8
+    transformer_spatial_patch_size = 1
+    transformer_temporal_patch_size = 1
+
+    height = height // vae_spatial_compression_ratio
+    width = width // vae_spatial_compression_ratio
+    num_frames = (num_frames - 1) // vae_temporal_compression_ratio + 1
+
+    shape = (batch_size, num_channels_latents, num_frames, height, width)
+
+    latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+    latents = LTXPipeline._pack_latents(latents, transformer_spatial_patch_size, transformer_temporal_patch_size)
+    return latents
+
+
+# Adapted from Diffusers.
 def prepare_latents(
     batch_size: int, height: int, width: int, generator: torch.Generator, device: str, dtype: torch.dtype
 ):
@@ -153,6 +181,7 @@ def get_latent_prep_fn(pretrained_model_name_or_path: str) -> callable:
         "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": prepare_latents,
         "stabilityai/stable-diffusion-xl-base-1.0": prepare_latents,
         "stable-diffusion-v1-5/stable-diffusion-v1-5": prepare_latents,
+        "Lightricks/LTX-Video": prepare_latents_ltx,
     }[pretrained_model_name_or_path]
     return fn_map
 
@@ -165,6 +194,7 @@ def get_noises(
     device="cuda",
     dtype: torch.dtype = torch.bfloat16,
     fn: callable = prepare_latents_for_flux,
+    **kwargs,
 ) -> Dict[int, torch.Tensor]:
     seeds = torch.randint(0, high=max_seed, size=(num_samples,))
 
@@ -177,6 +207,7 @@ def get_noises(
             generator=torch.manual_seed(int(noise_seed)),
             device=device,
             dtype=dtype,
+            **kwargs,
         )
         noises.update({int(noise_seed): latents})
 
@@ -254,6 +285,19 @@ def recover_json_from_output(output: str):
     end = output.rfind("}") + 1
     json_part = output[start:end]
     return json.loads(json_part)
+
+
+def get_key_frames(path: Union[Path, str]) -> list[Image.Image]:
+    import av
+
+    frames = []
+    container = av.open(str(path))
+    stream = container.streams.video[0]
+    stream.codec_context.skip_frame = "NONKEY"
+    for _, frame in enumerate(container.decode(stream)):
+        frames.append(frame.to_image())
+    container.close()
+    return frames
 
 
 def serialize_artifacts(
