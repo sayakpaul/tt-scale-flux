@@ -14,6 +14,7 @@ import io
 import numpy as np
 import torch.nn.functional as F
 from pathlib import Path
+from diffusers.utils import export_to_video
 
 
 TORCH_DTYPE_MAP = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
@@ -300,19 +301,42 @@ def get_key_frames(path: Union[Path, str]) -> list[Image.Image]:
     return frames
 
 
+def prepare_video_frames(vid_path):
+    vid_frames = get_key_frames(vid_path)
+    first = vid_frames[0]
+    mid = None
+    last = None
+    if len(vid_frames) == 2:
+        last = vid_frames[1]
+    elif len(vid_frames) > 2:
+        mid = vid_frames[len(vid_frames) // 2]
+        last = vid_frames[-1]
+    frames = []
+    for idx, frame in enumerate([first, mid, last]):
+        if frame is None:
+            continue
+        frames.append(frame)
+
+    return frames
+
+
 def serialize_artifacts(
     images_info: list[tuple[int, torch.Tensor, Image.Image, str]],
     prompt: str,
     search_round: int,
     root_dir: str,
     datapoint: dict,
+    **kwargs,
 ) -> None:
     """
     Serialize generated images and the best datapoint JSON configuration.
     """
     # Save each image.
     for seed, noise, image, filename in images_info:
-        image.save(filename)
+        if filename.endswith(".png"):
+            image.save(filename)
+        elif filename.endswith(".mp4"):
+            export_to_video(image, filename, fps=kwargs.get("fps", 24))
 
     # Save the best datapoint config as a JSON file.
     best_json_filename = datapoint["best_img_path"].replace(".png", ".json")

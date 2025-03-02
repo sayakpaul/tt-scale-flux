@@ -19,6 +19,7 @@ from utils import (
     serialize_artifacts,
     MODEL_NAME_MAP,
     get_key_frames,
+    prepare_video_frames,
 )
 from verifiers import SUPPORTED_VERIFIERS
 
@@ -59,11 +60,14 @@ def sample(
     noise_items = list(noises.items())
 
     # Process the noises in batches.
+    # TODO: find better way
+    extension_to_use = "png" if "LTX" not in pipe.__class__.__name__ else "mp4"
     for i in range(0, len(noise_items), batch_size_for_img_gen):
         batch = noise_items[i : i + batch_size_for_img_gen]
         seeds_batch, noises_batch = zip(*batch)
         filenames_batch = [
-            os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{seed}.png") for seed in seeds_batch
+            os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{seed}.{extension_to_use}")
+            for seed in seeds_batch
         ]
 
         if use_low_gpu_vram and verifier_to_use != "gemini":
@@ -107,21 +111,7 @@ def sample(
 
         verifier_inputs = []
         for vid_path in temp_vid_paths:
-            vid_frames = get_key_frames(vid_path)
-            first = vid_frames[0]
-            mid = None
-            last = None
-            if len(vid_frames) == 2:
-                last = vid_frames[1]
-            elif len(vid_frames) > 2:
-                mid = vid_frames[len(vid_frames) // 2]
-                last = vid_frames[-1]
-            frames = []
-            for idx, frame in enumerate([first, mid, last]):
-                if frame is None:
-                    continue
-                frames.append(frame)
-
+            frames = prepare_video_frames(vid_path)
             verifier_inputs.append(verifier.prepare_inputs(images=frames, prompts=[prompt] * len(frames)))
 
     print("Scoring with the verifier.")
@@ -174,11 +164,11 @@ def sample(
     # Serialize.
     if search_method == "zero-order":
         if datapoint["neighbors_improvement"]:
-            serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint)
+            serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint, **export_args)
         else:
             print("Skipping serialization as there was no improvement in this round.")
     elif search_method == "random":
-        serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint)
+        serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint, **export_args)
 
     return datapoint
 
