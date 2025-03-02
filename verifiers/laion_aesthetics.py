@@ -49,14 +49,16 @@ class LAIONAestheticVerifier(BaseVerifier):
 
     def prepare_inputs(self, images, prompts=None, **kwargs):
         inputs = self.processor(images=images, return_tensors="pt")
-        inputs = inputs.to(self.device, self.dtype)
+        inputs = inputs.to(device=self.device)
+        inputs = {k: v.to(self.dtype) for k, v in inputs.items()}
         return inputs
 
     @torch.no_grad()
     @torch.inference_mode()
     def score(self, inputs, **kwargs):
+        # TODO: consider batching inputs if they get too large.
         embed = self.clip(**inputs)[0]
         # normalize embedding
         embed = embed / torch.linalg.vector_norm(embed, dim=-1, keepdim=True)
         scores = self.mlp(embed).squeeze(1)
-        return [{"laion_aesthetic_score": score} for score in scores]
+        return [{"laion_aesthetic_score": score.item()} for score in scores]
