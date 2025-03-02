@@ -18,7 +18,6 @@ from utils import (
     parse_cli_args,
     serialize_artifacts,
     MODEL_NAME_MAP,
-    get_key_frames,
     prepare_video_frames,
 )
 from verifiers import SUPPORTED_VERIFIERS
@@ -98,21 +97,22 @@ def sample(
     if isinstance(images_for_prompt[0], Image.Image):
         verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
     else:
-        export_args = config.get("export_args", None)
+        export_args = config.get("export_args", None) or {}
         if export_args:
             fps = export_args.get("fps", 24)
         else:
             fps = 24
         temp_vid_paths = []
-        for vid in images_for_prompt:
-            with tempfile.TemporaryFile(suffix=".mp4") as f:
-                export_to_video(vid, f, fps=fps)
-                temp_vid_paths.append(f)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for idx, vid in enumerate(images_for_prompt):
+                vid_path = os.path.join(tmpdir, f"{idx}.mp4")
+                export_to_video(vid, vid_path, fps=fps)
+                temp_vid_paths.append(vid_path)
 
-        verifier_inputs = []
-        for vid_path in temp_vid_paths:
-            frames = prepare_video_frames(vid_path)
-            verifier_inputs.append(verifier.prepare_inputs(images=frames, prompts=[prompt] * len(frames)))
+            verifier_inputs = []
+            for vid_path in temp_vid_paths:
+                frames = prepare_video_frames(vid_path)
+                verifier_inputs.append(verifier.prepare_inputs(images=frames, prompts=[prompt] * len(frames)))
 
     print("Scoring with the verifier.")
     outputs = verifier.score(inputs=verifier_inputs)
@@ -142,7 +142,9 @@ def sample(
     for ts in topk_scores:
         print(f"Prompt='{prompt}' | Best seed={ts['seed']} | Score={ts[choice_of_metric]}")
 
-    best_img_path = os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{topk_scores[0]['seed']}.png")
+    best_img_path = os.path.join(
+        root_dir, f"{prompt_filename}_i@{search_round}_s@{topk_scores[0]['seed']}.{extension_to_use}"
+    )
     datapoint = {
         "prompt": prompt,
         "search_round": search_round,
@@ -229,7 +231,7 @@ def main():
     verifier = verifier_cls(**verifier_args)
 
     # === Main loop: For each prompt and each search round ===
-    pipeline_call_args = config["pipeline_call_args"]
+    pipeline_call_args = config["pipeline_call_args"].copy()
     for prompt in tqdm(prompts, desc="Processing prompts"):
         search_round = 1
 
@@ -263,8 +265,6 @@ def main():
                 noises = get_noises(
                     max_seed=MAX_SEED,
                     num_samples=num_noises_to_sample,
-                    height=pipeline_call_args.pop("height"),
-                    width=pipeline_call_args.pop("width"),
                     dtype=torch_dtype,
                     fn=get_latent_prep_fn(pipeline_name),
                     **pipeline_call_args,

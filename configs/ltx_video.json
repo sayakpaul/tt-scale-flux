@@ -2,11 +2,10 @@
     "pretrained_model_name_or_path": "a-r-r-o-w/LTX-Video-0.9.1-diffusers",
     "torch_dtype": "bf16",
     "pipeline_call_args": {
-        "height": 704,
-        "width": 480,
+        "height": 480,
+        "width": 704,
         "num_frames": 161, 
         "negative_prompt": "worst quality, inconsistent motion, blurry, jittery, distorted",
-        "guidance_scale": 3.5,
         "num_inference_steps": 50
     },
     "verifier_args": {
@@ -14,7 +13,10 @@
         "choice_of_metric": "laion_aesthetic_score"
     },
     "search_args": {
-        "search_method": "random",
-        "search_rounds": 4
-    }
+        "search_method": "zero-order",
+        "search_rounds": 4,
+        "threshold": 0.95,
+        "num_neighbors": 4
+    },
+    "export_args": {"fps": 24}
 }

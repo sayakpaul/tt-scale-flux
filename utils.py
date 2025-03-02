@@ -23,6 +23,8 @@ MODEL_NAME_MAP = {
     "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": "pixart-sigma-1024-ms",
     "stabilityai/stable-diffusion-xl-base-1.0": "sdxl-base",
     "stable-diffusion-v1-5/stable-diffusion-v1-5": "sd-v1.5",
+    "a-r-r-o-w/LTX-Video-0.9.1-diffusers": "ltx-video",
+    "Lightricks/LTX-Video": "ltx-video",
 }
 MANDATORY_CONFIG_KEYS = [
     "pretrained_model_name_or_path",
@@ -143,6 +145,7 @@ def prepare_latents_ltx(
     dtype: torch.dtype = None,
     device: torch.device = None,
     generator: torch.Generator = None,
+    **kwargs,
 ) -> torch.Tensor:
     vae_spatial_compression_ratio = 32
     vae_temporal_compression_ratio = 8
@@ -155,7 +158,7 @@ def prepare_latents_ltx(
 
     shape = (batch_size, num_channels_latents, num_frames, height, width)
 
-    latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
     latents = LTXPipeline._pack_latents(latents, transformer_spatial_patch_size, transformer_temporal_patch_size)
     return latents
 
@@ -182,6 +185,7 @@ def get_latent_prep_fn(pretrained_model_name_or_path: str) -> callable:
         "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": prepare_latents,
         "stabilityai/stable-diffusion-xl-base-1.0": prepare_latents,
         "stable-diffusion-v1-5/stable-diffusion-v1-5": prepare_latents,
+        "a-r-r-o-w/LTX-Video-0.9.1-diffusers": prepare_latents_ltx,
         "Lightricks/LTX-Video": prepare_latents_ltx,
     }[pretrained_model_name_or_path]
     return fn_map
@@ -316,7 +320,6 @@ def prepare_video_frames(vid_path):
         if frame is None:
             continue
         frames.append(frame)
-
     return frames
 
 
@@ -339,10 +342,10 @@ def serialize_artifacts(
             export_to_video(image, filename, fps=kwargs.get("fps", 24))
 
     # Save the best datapoint config as a JSON file.
-    best_json_filename = datapoint["best_img_path"].replace(".png", ".json")
+    best_json_filename = datapoint["best_img_path"].replace(".png", ".json").replace(".mp4", ".json")
     with open(best_json_filename, "w") as f:
         # Remove the noise tensor (or any non-serializable object) from the JSON.
         datapoint_copy = datapoint.copy()
         datapoint_copy.pop("best_noise", None)
         json.dump(datapoint_copy, f, indent=4)
-    print(f"Serialized JSON configuration and images to {root_dir}.")
+    print(f"Serialized artifacts to {root_dir}.")
