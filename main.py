@@ -119,9 +119,9 @@ def sample(
     for o in outputs:
         assert choice_of_metric in o, o.keys()
 
-    assert len(outputs) == len(images_for_prompt), (
-        f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
-    )
+    assert (
+        len(outputs) == len(images_for_prompt)
+    ), f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
 
     results = []
     for json_dict, seed_val, noise in zip(outputs, seeds_used, noises_used):

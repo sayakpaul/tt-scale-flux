@@ -80,9 +80,9 @@ def validate_args(args):
         config = json.load(f)
 
     config_keys = list(config.keys())
-    assert all(element in config_keys for element in MANDATORY_CONFIG_KEYS), (
-        f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
-    )
+    assert all(
+        element in config_keys for element in MANDATORY_CONFIG_KEYS
+    ), f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
 
     _validate_verifier_args(config)
     _validate_search_args(config)
@@ -94,15 +94,15 @@ def _validate_verifier_args(config):
     verifier_args = config["verifier_args"]
     supported_verifiers = list(SUPPORTED_VERIFIERS.keys())
     verifier = verifier_args["name"]
-    assert verifier in supported_verifiers, (
-        f"Unknown verifier provided: {verifier}, supported ones are: {supported_metrics}."
-    )
+    assert (
+        verifier in supported_verifiers
+    ), f"Unknown verifier provided: {verifier}, supported ones are: {supported_metrics}."
 
     supported_metrics = SUPPORTED_METRICS[verifier_args["name"]]
     choice_of_metric = verifier_args["choice_of_metric"]
-    assert choice_of_metric in supported_metrics, (
-        f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
-    )
+    assert (
+        choice_of_metric in supported_metrics
+    ), f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
 
 
 def _validate_search_args(config):
@@ -110,9 +110,9 @@ def _validate_search_args(config):
     search_method = search_args["search_method"]
     supported_search_methods = ["random", "zero-order"]
 
-    assert search_method in supported_search_methods, (
-        f"Unsupported search method provided: {search_method}, supported ones are: {supported_search_methods}."
-    )
+    assert (
+        search_method in supported_search_methods
+    ), f"Unsupported search method provided: {search_method}, supported ones are: {supported_search_methods}."
 
 
 # Adapted from Diffusers.
@@ -292,34 +292,34 @@ def recover_json_from_output(output: str):
     return json.loads(json_part)
 
 
-def get_key_frames(path: Union[Path, str]) -> list[Image.Image]:
-    import av
+def prepare_video_frames(vid_path: Union[Path, str]) -> list[Image.Image]:
+    """Only sample key frames instead of sampling the entire video."""
+    from moviepy.editor import VideoFileClip
 
-    frames = []
-    container = av.open(str(path))
-    stream = container.streams.video[0]
-    stream.codec_context.skip_frame = "NONKEY"
-    for _, frame in enumerate(container.decode(stream)):
-        frames.append(frame.to_image())
-    container.close()
-    return frames
+    clip = VideoFileClip(str(vid_path))
+    duration = clip.duration  # Duration in seconds
 
+    # Always get the first frame (at t=0)
+    first_frame = Image.fromarray(clip.get_frame(0))
 
-def prepare_video_frames(vid_path):
-    vid_frames = get_key_frames(vid_path)
-    first = vid_frames[0]
-    mid = None
-    last = None
-    if len(vid_frames) == 2:
-        last = vid_frames[1]
-    elif len(vid_frames) > 2:
-        mid = vid_frames[len(vid_frames) // 2]
-        last = vid_frames[-1]
-    frames = []
-    for idx, frame in enumerate([first, mid, last]):
-        if frame is None:
-            continue
-        frames.append(frame)
+    # Decide which frames to sample based on video duration and fps.
+    # (Here we use the clip’s duration to sample a mid and the last frame.)
+    if duration <= 0:
+        clip.close()
+        return [first_frame]
+
+    # Get the last frame (at the very end)
+    last_frame = Image.fromarray(clip.get_frame(duration))
+
+    # If the video is very short (e.g. only 2 frames), skip the middle frame.
+    # Otherwise, sample the middle frame at t=duration/2.
+    if duration < 1 / clip.fps * 2:
+        frames = [first_frame, last_frame]
+    else:
+        mid_frame = Image.fromarray(clip.get_frame(duration / 2))
+        frames = [first_frame, mid_frame, last_frame]
+
+    clip.close()
     return frames
 
 

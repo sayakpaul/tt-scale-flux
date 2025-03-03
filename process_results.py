@@ -29,10 +29,13 @@ def add_text_to_image(image: Image.Image, text: str, position=(10, 10), color="i
 def compute_grid(n):
     """
     Compute a grid layout (rows, cols) that is as square as possible.
+    For n=1,2,3, it returns a single row and n columns.
     For example:
       - 4 videos -> 2 rows x 2 cols
-      - 6 videos -> 2 rows x 3 cols (i.e. grid 3x2)
+      - 6 videos -> 2 rows x 3 cols
     """
+    if n < 4:
+        return 1, n
     cols = math.ceil(math.sqrt(n))
     rows = math.ceil(n / cols)
     return rows, cols
