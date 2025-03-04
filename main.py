@@ -221,7 +221,14 @@ def main():
 
     # === Set up the image-generation pipeline ===
     torch_dtype = TORCH_DTYPE_MAP[config.pop("torch_dtype")]
-    pipe = DiffusionPipeline.from_pretrained(pipeline_name, torch_dtype=torch_dtype)
+    fp_kwargs = {"pretrained_model_name_or_path": pipeline_name, "torch_dtype": torch_dtype}
+    if "Wan" in pipeline_name:
+        # As per recommendations from https://huggingface.co/docs/diffusers/main/en/api/pipelines/wan.
+        from diffusers import AutoencoderKLWan
+
+        vae = AutoencoderKLWan.from_pretrained(pipeline_name, subfolder="vae", torch_dtype=torch.float32)
+        fp_kwargs.update({"vae": vae})
+    pipe = DiffusionPipeline.from_pretrained(**fp_kwargs)
     if not config.get("use_low_gpu_vram", False):
         pipe = pipe.to("cuda:0")
     pipe.set_progress_bar_config(disable=True)
