@@ -60,7 +60,11 @@ def sample(
 
     # Process the noises in batches.
     # TODO: find better way
-    extension_to_use = "png" if "LTX" not in pipe.__class__.__name__ else "mp4"
+    extension_to_use = "png"
+    if "LTX" in pipe.__class__.__name__:
+        extension_to_use = "mp4"
+    elif "Wan" in pipe.__class__.__name__:
+        extension_to_use = "mp4"
     for i in range(0, len(noise_items), batch_size_for_img_gen):
         batch = noise_items[i : i + batch_size_for_img_gen]
         seeds_batch, noises_batch = zip(*batch)

@@ -168,10 +168,10 @@ def prepare_latents_ltx(
 # Adapted from Diffusers.
 def prepare_latents_wan(
     batch_size: int = 1,
-    num_channels_latents: int = 128,
-    height: int = 512,
-    width: int = 704,
-    num_frames: int = 161,
+    num_channels_latents: int = 16,
+    height: int = 720,
+    width: int = 1280,
+    num_frames: int = 81,
     dtype: torch.dtype = None,
     device: torch.device = None,
     generator: torch.Generator = None,
@@ -179,7 +179,6 @@ def prepare_latents_wan(
 ) -> torch.Tensor:
     vae_scale_factor_temporal = 4
     vae_scale_factor_spatial = 8
-
     num_latent_frames = (num_frames - 1) // vae_scale_factor_temporal + 1
 
     shape = (
