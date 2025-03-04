@@ -1,6 +1,6 @@
 import torch
 from diffusers.utils.torch_utils import randn_tensor
-from diffusers import FluxPipeline
+from diffusers import FluxPipeline, LTXPipeline
 import base64
 import re
 import hashlib
@@ -13,6 +13,8 @@ import argparse
 import io
 import numpy as np
 import torch.nn.functional as F
+from pathlib import Path
+from diffusers.utils import export_to_video
 
 
 TORCH_DTYPE_MAP = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
@@ -21,6 +23,10 @@ MODEL_NAME_MAP = {
     "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": "pixart-sigma-1024-ms",
     "stabilityai/stable-diffusion-xl-base-1.0": "sdxl-base",
     "stable-diffusion-v1-5/stable-diffusion-v1-5": "sd-v1.5",
+    "a-r-r-o-w/LTX-Video-0.9.1-diffusers": "ltx-video",
+    "Lightricks/LTX-Video": "ltx-video",
+    "Wan-AI/Wan2.1-T2V-1.3B-Diffusers": "wan-2.1",
+    "Wan-AI/Wan2.1-T2V-14B-Diffusers": "wan-2.1",
 }
 MANDATORY_CONFIG_KEYS = [
     "pretrained_model_name_or_path",
@@ -76,9 +82,9 @@ def validate_args(args):
         config = json.load(f)
 
     config_keys = list(config.keys())
-    assert all(element in config_keys for element in MANDATORY_CONFIG_KEYS), (
-        f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
-    )
+    assert all(
+        element in config_keys for element in MANDATORY_CONFIG_KEYS
+    ), f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
 
     _validate_verifier_args(config)
     _validate_search_args(config)
@@ -90,15 +96,15 @@ def _validate_verifier_args(config):
     verifier_args = config["verifier_args"]
     supported_verifiers = list(SUPPORTED_VERIFIERS.keys())
     verifier = verifier_args["name"]
-    assert verifier in supported_verifiers, (
-        f"Unknown verifier provided: {verifier}, supported ones are: {supported_metrics}."
-    )
+    assert (
+        verifier in supported_verifiers
+    ), f"Unknown verifier provided: {verifier}, supported ones are: {supported_verifiers}."
 
     supported_metrics = SUPPORTED_METRICS[verifier_args["name"]]
     choice_of_metric = verifier_args["choice_of_metric"]
-    assert choice_of_metric in supported_metrics, (
-        f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
-    )
+    assert (
+        choice_of_metric in supported_metrics
+    ), f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
 
 
 def _validate_search_args(config):
@@ -106,9 +112,9 @@ def _validate_search_args(config):
     search_method = search_args["search_method"]
     supported_search_methods = ["random", "zero-order"]
 
-    assert search_method in supported_search_methods, (
-        f"Unsupported search method provided: {search_method}, supported ones are: {supported_search_methods}."
-    )
+    assert (
+        search_method in supported_search_methods
+    ), f"Unsupported search method provided: {search_method}, supported ones are: {supported_search_methods}."
 
 
 # Adapted from Diffusers.
@@ -128,6 +134,62 @@ def prepare_latents_for_flux(
     shape = (batch_size, num_latent_channels, height, width)
     latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
     latents = FluxPipeline._pack_latents(latents, batch_size, num_latent_channels, height, width)
+    return latents
+
+
+# Adapted from Diffusers.
+def prepare_latents_ltx(
+    batch_size: int = 1,
+    num_channels_latents: int = 128,
+    height: int = 512,
+    width: int = 704,
+    num_frames: int = 161,
+    dtype: torch.dtype = None,
+    device: torch.device = None,
+    generator: torch.Generator = None,
+    **kwargs,
+) -> torch.Tensor:
+    vae_spatial_compression_ratio = 32
+    vae_temporal_compression_ratio = 8
+    transformer_spatial_patch_size = 1
+    transformer_temporal_patch_size = 1
+
+    height = height // vae_spatial_compression_ratio
+    width = width // vae_spatial_compression_ratio
+    num_frames = (num_frames - 1) // vae_temporal_compression_ratio + 1
+
+    shape = (batch_size, num_channels_latents, num_frames, height, width)
+
+    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
+    latents = LTXPipeline._pack_latents(latents, transformer_spatial_patch_size, transformer_temporal_patch_size)
+    return latents
+
+
+# Adapted from Diffusers.
+def prepare_latents_wan(
+    batch_size: int = 1,
+    num_channels_latents: int = 16,
+    height: int = 720,
+    width: int = 1280,
+    num_frames: int = 81,
+    dtype: torch.dtype = None,
+    device: torch.device = None,
+    generator: torch.Generator = None,
+    **kwargs,
+) -> torch.Tensor:
+    vae_scale_factor_temporal = 4
+    vae_scale_factor_spatial = 8
+    num_latent_frames = (num_frames - 1) // vae_scale_factor_temporal + 1
+
+    shape = (
+        batch_size,
+        num_channels_latents,
+        num_latent_frames,
+        int(height) // vae_scale_factor_spatial,
+        int(width) // vae_scale_factor_spatial,
+    )
+
+    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
     return latents
 
 
@@ -153,6 +215,10 @@ def get_latent_prep_fn(pretrained_model_name_or_path: str) -> callable:
         "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": prepare_latents,
         "stabilityai/stable-diffusion-xl-base-1.0": prepare_latents,
         "stable-diffusion-v1-5/stable-diffusion-v1-5": prepare_latents,
+        "a-r-r-o-w/LTX-Video-0.9.1-diffusers": prepare_latents_ltx,
+        "Lightricks/LTX-Video": prepare_latents_ltx,
+        "Wan-AI/Wan2.1-T2V-14B-Diffusers": prepare_latents_wan,
+        "Wan-AI/Wan2.1-T2V-1.3B-Diffusers": prepare_latents_wan,
     }[pretrained_model_name_or_path]
     return fn_map
 
@@ -165,6 +231,7 @@ def get_noises(
     device="cuda",
     dtype: torch.dtype = torch.bfloat16,
     fn: callable = prepare_latents_for_flux,
+    **kwargs,
 ) -> Dict[int, torch.Tensor]:
     seeds = torch.randint(0, high=max_seed, size=(num_samples,))
 
@@ -177,6 +244,7 @@ def get_noises(
             generator=torch.manual_seed(int(noise_seed)),
             device=device,
             dtype=dtype,
+            **kwargs,
         )
         noises.update({int(noise_seed): latents})
 
@@ -256,25 +324,60 @@ def recover_json_from_output(output: str):
     return json.loads(json_part)
 
 
+def prepare_video_frames(vid_path: Union[Path, str]) -> list[Image.Image]:
+    """Only sample key frames instead of sampling the entire video."""
+    from moviepy import VideoFileClip
+
+    clip = VideoFileClip(str(vid_path))
+    duration = clip.duration  # Duration in seconds
+
+    # Always get the first frame (at t=0)
+    first_frame = Image.fromarray(clip.get_frame(0))
+
+    # Decide which frames to sample based on video duration and fps.
+    # (Here we use the clip’s duration to sample a mid and the last frame.)
+    if duration <= 0:
+        clip.close()
+        return [first_frame]
+
+    # Get the last frame (at the very end)
+    last_frame = Image.fromarray(clip.get_frame(duration))
+
+    # If the video is very short (e.g. only 2 frames), skip the middle frame.
+    # Otherwise, sample the middle frame at t=duration/2.
+    if duration < 1 / clip.fps * 2:
+        frames = [first_frame, last_frame]
+    else:
+        mid_frame = Image.fromarray(clip.get_frame(duration / 2))
+        frames = [first_frame, mid_frame, last_frame]
+
+    clip.close()
+    return frames
+
+
 def serialize_artifacts(
     images_info: list[tuple[int, torch.Tensor, Image.Image, str]],
     prompt: str,
     search_round: int,
     root_dir: str,
     datapoint: dict,
+    **kwargs,
 ) -> None:
     """
     Serialize generated images and the best datapoint JSON configuration.
     """
     # Save each image.
     for seed, noise, image, filename in images_info:
-        image.save(filename)
+        if filename.endswith(".png"):
+            image.save(filename)
+        elif filename.endswith(".mp4"):
+            export_to_video(image, filename, fps=kwargs.get("fps", 24))
 
     # Save the best datapoint config as a JSON file.
-    best_json_filename = datapoint["best_img_path"].replace(".png", ".json")
+    best_json_filename = datapoint["best_img_path"].replace(".png", ".json").replace(".mp4", ".json")
     with open(best_json_filename, "w") as f:
         # Remove the noise tensor (or any non-serializable object) from the JSON.
         datapoint_copy = datapoint.copy()
         datapoint_copy.pop("best_noise", None)
         json.dump(datapoint_copy, f, indent=4)
-    print(f"Serialized JSON configuration and images to {root_dir}.")
+    print(f"Serialized artifacts to {root_dir}.")

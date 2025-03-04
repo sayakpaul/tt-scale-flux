@@ -1,11 +1,13 @@
 import os
 import json
 from datetime import datetime
-
+from PIL import Image
 import numpy as np
 import torch
 from diffusers import DiffusionPipeline
 from tqdm.auto import tqdm
+import tempfile
+from diffusers.utils import export_to_video
 
 from utils import (
     generate_neighbors,
@@ -16,6 +18,7 @@ from utils import (
     parse_cli_args,
     serialize_artifacts,
     MODEL_NAME_MAP,
+    prepare_video_frames,
 )
 from verifiers import SUPPORTED_VERIFIERS
 
@@ -42,7 +45,6 @@ def sample(
     use_low_gpu_vram = config.get("use_low_gpu_vram", False)
     batch_size_for_img_gen = config.get("batch_size_for_img_gen", 1)
     verifier_args = config.get("verifier_args")
-    max_new_tokens = verifier_args.get("max_new_tokens", None)
     choice_of_metric = verifier_args.get("choice_of_metric", None)
     verifier_to_use = verifier_args.get("name", "gemini")
     search_args = config.get("search_args", None)
@@ -57,11 +59,18 @@ def sample(
     noise_items = list(noises.items())
 
     # Process the noises in batches.
+    # TODO: find better way
+    extension_to_use = "png"
+    if "LTX" in pipe.__class__.__name__:
+        extension_to_use = "mp4"
+    elif "Wan" in pipe.__class__.__name__:
+        extension_to_use = "mp4"
     for i in range(0, len(noise_items), batch_size_for_img_gen):
         batch = noise_items[i : i + batch_size_for_img_gen]
         seeds_batch, noises_batch = zip(*batch)
         filenames_batch = [
-            os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{seed}.png") for seed in seeds_batch
+            os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{seed}.{extension_to_use}")
+            for seed in seeds_batch
         ]
 
         if use_low_gpu_vram and verifier_to_use != "gemini":
@@ -73,7 +82,11 @@ def sample(
         batched_latents = torch.stack(noises_batch).squeeze(dim=1)
 
         batch_result = pipe(prompt=batched_prompts, latents=batched_latents, **config["pipeline_call_args"])
-        batch_images = batch_result.images
+        if hasattr(batch_result, "images"):
+            batch_images = batch_result.images
+        elif hasattr(batch_result, "frames"):
+            batch_images = [vid for vid in batch_result.frames]
+
         if use_low_gpu_vram and verifier_to_use != "gemini":
             pipe = pipe.to("cpu")
 
@@ -85,15 +98,34 @@ def sample(
             images_info.append((seed, noise, image, filename))
 
     # Prepare verifier inputs and perform inference.
-    verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
+    if isinstance(images_for_prompt[0], Image.Image):
+        verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
+    else:
+        export_args = config.get("export_args", None) or {}
+        if export_args:
+            fps = export_args.get("fps", 24)
+        else:
+            fps = 24
+        temp_vid_paths = []
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for idx, vid in enumerate(images_for_prompt):
+                vid_path = os.path.join(tmpdir, f"{idx}.mp4")
+                export_to_video(vid, vid_path, fps=fps)
+                temp_vid_paths.append(vid_path)
+
+            verifier_inputs = []
+            for vid_path in temp_vid_paths:
+                frames = prepare_video_frames(vid_path)
+                verifier_inputs.append(verifier.prepare_inputs(images=frames, prompts=[prompt] * len(frames)))
+
     print("Scoring with the verifier.")
     outputs = verifier.score(inputs=verifier_inputs)
     for o in outputs:
         assert choice_of_metric in o, o.keys()
 
-    assert len(outputs) == len(images_for_prompt), (
-        f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
-    )
+    assert (
+        len(outputs) == len(images_for_prompt)
+    ), f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
 
     results = []
     for json_dict, seed_val, noise in zip(outputs, seeds_used, noises_used):
@@ -114,7 +146,9 @@ def sample(
     for ts in topk_scores:
         print(f"Prompt='{prompt}' | Best seed={ts['seed']} | Score={ts[choice_of_metric]}")
 
-    best_img_path = os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{topk_scores[0]['seed']}.png")
+    best_img_path = os.path.join(
+        root_dir, f"{prompt_filename}_i@{search_round}_s@{topk_scores[0]['seed']}.{extension_to_use}"
+    )
     datapoint = {
         "prompt": prompt,
         "search_round": search_round,
@@ -136,11 +170,11 @@ def sample(
     # Serialize.
     if search_method == "zero-order":
         if datapoint["neighbors_improvement"]:
-            serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint)
+            serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint, **export_args)
         else:
             print("Skipping serialization as there was no improvement in this round.")
     elif search_method == "random":
-        serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint)
+        serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint, **export_args)
 
     return datapoint
 
@@ -187,7 +221,14 @@ def main():
 
     # === Set up the image-generation pipeline ===
     torch_dtype = TORCH_DTYPE_MAP[config.pop("torch_dtype")]
-    pipe = DiffusionPipeline.from_pretrained(pipeline_name, torch_dtype=torch_dtype)
+    fp_kwargs = {"pretrained_model_name_or_path": pipeline_name, "torch_dtype": torch_dtype}
+    if "Wan" in pipeline_name:
+        # As per recommendations from https://huggingface.co/docs/diffusers/main/en/api/pipelines/wan.
+        from diffusers import AutoencoderKLWan
+
+        vae = AutoencoderKLWan.from_pretrained(pipeline_name, subfolder="vae", torch_dtype=torch.float32)
+        fp_kwargs.update({"vae": vae})
+    pipe = DiffusionPipeline.from_pretrained(**fp_kwargs)
     if not config.get("use_low_gpu_vram", False):
         pipe = pipe.to("cuda:0")
     pipe.set_progress_bar_config(disable=True)
@@ -201,6 +242,7 @@ def main():
     verifier = verifier_cls(**verifier_args)
 
     # === Main loop: For each prompt and each search round ===
+    pipeline_call_args = config["pipeline_call_args"].copy()
     for prompt in tqdm(prompts, desc="Processing prompts"):
         search_round = 1
 
@@ -234,10 +276,9 @@ def main():
                 noises = get_noises(
                     max_seed=MAX_SEED,
                     num_samples=num_noises_to_sample,
-                    height=config["pipeline_call_args"]["height"],
-                    width=config["pipeline_call_args"]["width"],
                     dtype=torch_dtype,
                     fn=get_latent_prep_fn(pipeline_name),
+                    **pipeline_call_args,
                 )
             else:
                 if best_datapoint_per_round[previous_round]:

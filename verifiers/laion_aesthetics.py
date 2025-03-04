@@ -3,6 +3,8 @@ import torch.nn as nn
 from transformers import CLIPVisionModelWithProjection, CLIPProcessor
 from huggingface_hub import hf_hub_download
 import os
+from typing import Union
+from PIL import Image
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -47,18 +49,32 @@ class LAIONAestheticVerifier(BaseVerifier):
         self.mlp.load_state_dict(state_dict)
         self.mlp.to(self.device, self.dtype)
 
-    def prepare_inputs(self, images, prompts=None, **kwargs):
+    def prepare_inputs(self, images: Union[list[Image.Image], Image.Image], prompts=None, **kwargs):
+        images = images if isinstance(images, list) else [images]
         inputs = self.processor(images=images, return_tensors="pt")
         inputs = inputs.to(device=self.device)
         inputs = {k: v.to(self.dtype) for k, v in inputs.items()}
         return inputs
 
-    @torch.no_grad()
-    @torch.inference_mode()
-    def score(self, inputs, **kwargs):
-        # TODO: consider batching inputs if they get too large.
+    def _score(self, inputs):
         embed = self.clip(**inputs)[0]
         # normalize embedding
         embed = embed / torch.linalg.vector_norm(embed, dim=-1, keepdim=True)
         scores = self.mlp(embed).squeeze(1)
-        return [{"laion_aesthetic_score": score.item()} for score in scores]
+        return scores
+
+    @torch.no_grad()
+    @torch.inference_mode()
+    def score(self, inputs, **kwargs):
+        # TODO: consider batching inputs if they get too large.
+        # videos
+        if isinstance(inputs, list):
+            scores_per_video = []
+            for inputs_ in inputs:
+                score_for_video = self._score(inputs_)
+                scores_per_video.append({"laion_aesthetic_score": score_for_video.mean().item()})
+            return scores_per_video
+        # images
+        else:
+            scores = self._score(inputs)
+            return [{"laion_aesthetic_score": score.item()} for score in scores]
