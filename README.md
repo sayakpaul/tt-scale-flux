@@ -444,6 +444,47 @@ between the outputs of different metrics -- "overall_score" vs. "emotional_or_th
 
 </details>&nbsp;&nbsp;
 
+## Videos
+
+We currently support [LTX-Video](https://huggingface.co/docs/diffusers/main/en/api/pipelines/ltx_video) and [Wan](https://huggingface.co/docs/diffusers/main/en/api/pipelines/wan). Only LAION aeshtetic scoring is
+supported for these. Checkout the LTX and Wan configs [here](./configs/ltx_video.json) and [here](./configs/wan.json).
+
+<details>
+<summary>Expand for results</summary>
+
+<table>
+  <tr>
+    <th>Wan</th>
+  </tr>
+  <tr>
+    <td>
+      <video width="320" height="240" controls>
+      <source src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/videos/collage_Two_anthropomorphic_cats_in_comfy_boxing_gear_and_bright_gloves_fight_intensely_on_a__i%401-4.mp4" type="video/mp4">
+      </video>
+      <br>
+      <i>Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage.<i>
+    </td>
+  </tr>
+</table><br>
+
+<table>
+  <tr>
+    <th>LTX-Video</th>
+  </tr>
+  <tr>
+    <td>
+      <video width="320" height="240" controls>
+      <source src="https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/videos/collage_The_camera_pans_over_a_snow_covered_mountain_range_revealing_a_vast_expanse_of_snow_c_i%401-4.mp4" type="video/mp4">
+      </video>
+      <br>
+      <br>
+      <i>The camera pans over a snow-covered mountain range, revealing a vast expanse of snow-capped peaks and valleys.The mountains are covered in a thick layer of snow, with some areas appearing almost white while others have a slightly darker, almost grayish hue. The peaks are jagged and irregular, with some rising sharply into the sky while others are more rounded. The valleys are deep and narrow, with steep slopes that are also covered in snow. The trees in the foreground are mostly bare, with only a few leaves remaining on their branches. The sky is overcast, with thick clouds obscuring the sun. The overall impression is one of peace and tranquility, with the snow-covered mountains standing as a testament to the power and beauty of nature.<i>
+    </td>
+  </tr>
+</table>
+
+</details>
+
 ## Acknowledgements
 
 * Thanks to [Willis Ma](https://twitter.com/ma_nanye) for all the guidance and pair-coding.
