@@ -25,6 +25,8 @@ MODEL_NAME_MAP = {
     "stable-diffusion-v1-5/stable-diffusion-v1-5": "sd-v1.5",
     "a-r-r-o-w/LTX-Video-0.9.1-diffusers": "ltx-video",
     "Lightricks/LTX-Video": "ltx-video",
+    "Wan-AI/Wan2.1-T2V-1.3B-Diffusers": "wan-2.1",
+    "Wan-AI/Wan2.1-T2V-14B-Diffusers": "wan-2.1",
 }
 MANDATORY_CONFIG_KEYS = [
     "pretrained_model_name_or_path",
@@ -164,6 +166,35 @@ def prepare_latents_ltx(
 
 
 # Adapted from Diffusers.
+def prepare_latents_wan(
+    batch_size: int = 1,
+    num_channels_latents: int = 128,
+    height: int = 512,
+    width: int = 704,
+    num_frames: int = 161,
+    dtype: torch.dtype = None,
+    device: torch.device = None,
+    generator: torch.Generator = None,
+    **kwargs,
+) -> torch.Tensor:
+    vae_scale_factor_temporal = 4
+    vae_scale_factor_spatial = 8
+
+    num_latent_frames = (num_frames - 1) // vae_scale_factor_temporal + 1
+
+    shape = (
+        batch_size,
+        num_channels_latents,
+        num_latent_frames,
+        int(height) // vae_scale_factor_spatial,
+        int(width) // vae_scale_factor_spatial,
+    )
+
+    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
+    return latents
+
+
+# Adapted from Diffusers.
 def prepare_latents(
     batch_size: int, height: int, width: int, generator: torch.Generator, device: str, dtype: torch.dtype
 ):
@@ -187,6 +218,8 @@ def get_latent_prep_fn(pretrained_model_name_or_path: str) -> callable:
         "stable-diffusion-v1-5/stable-diffusion-v1-5": prepare_latents,
         "a-r-r-o-w/LTX-Video-0.9.1-diffusers": prepare_latents_ltx,
         "Lightricks/LTX-Video": prepare_latents_ltx,
+        "Wan-AI/Wan2.1-T2V-14B-Diffusers": prepare_latents_wan,
+        "Wan-AI/Wan2.1-T2V-1.3B-Diffusers": prepare_latents_wan,
     }[pretrained_model_name_or_path]
     return fn_map
 
