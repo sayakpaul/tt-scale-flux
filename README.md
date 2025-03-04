@@ -447,7 +447,9 @@ between the outputs of different metrics -- "overall_score" vs. "emotional_or_th
 ## Videos
 
 We currently support [LTX-Video](https://huggingface.co/docs/diffusers/main/en/api/pipelines/ltx_video) and [Wan](https://huggingface.co/docs/diffusers/main/en/api/pipelines/wan). Only LAION aeshtetic scoring is
-supported for these. Checkout the LTX and Wan configs [here](./configs/ltx_video.json) and [here](./configs/wan.json).
+supported for these. We compute the verification scores only on the first, middle, and last keyframes of a given video instead of providing the entire video as an input.
+
+Check out the LTX and Wan configs [here](./configs/ltx_video.json) and [here](./configs/wan.json).
 
 <details>
 <summary>Expand for results</summary>
