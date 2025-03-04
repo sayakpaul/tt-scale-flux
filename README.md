@@ -465,7 +465,9 @@ supported for these. Checkout the LTX and Wan configs [here](./configs/ltx_video
       <i>Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage.<i>
     </td>
   </tr>
-</table><br>
+</table>
+<sup>Check the video manually <a href=https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/videos/collage_Two_anthropomorphic_cats_in_comfy_boxing_gear_and_bright_gloves_fight_intensely_on_a__i%401-4.mp4>here</a> if it doesn't show up.
+<br>
 
 <table>
   <tr>
@@ -482,6 +484,7 @@ supported for these. Checkout the LTX and Wan configs [here](./configs/ltx_video
     </td>
   </tr>
 </table>
+<sup>Check the video manually <a href=https://huggingface.co/datasets/sayakpaul/sample-datasets/resolve/main/tt-scale-flux/videos/collage_The_camera_pans_over_a_snow_covered_mountain_range_revealing_a_vast_expanse_of_snow_c_i%401-4.mp4>here</a> if it doesn't show up.
 
 </details>
 
