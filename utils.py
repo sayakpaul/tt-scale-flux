@@ -96,7 +96,7 @@ def _validate_verifier_args(config):
     verifier = verifier_args["name"]
     assert (
         verifier in supported_verifiers
-    ), f"Unknown verifier provided: {verifier}, supported ones are: {supported_metrics}."
+    ), f"Unknown verifier provided: {verifier}, supported ones are: {supported_verifiers}."
 
     supported_metrics = SUPPORTED_METRICS[verifier_args["name"]]
     choice_of_metric = verifier_args["choice_of_metric"]
@@ -294,7 +294,7 @@ def recover_json_from_output(output: str):
 
 def prepare_video_frames(vid_path: Union[Path, str]) -> list[Image.Image]:
     """Only sample key frames instead of sampling the entire video."""
-    from moviepy.editor import VideoFileClip
+    from moviepy import VideoFileClip
 
     clip = VideoFileClip(str(vid_path))
     duration = clip.duration  # Duration in seconds

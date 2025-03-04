@@ -42,7 +42,7 @@ def compute_grid(n):
 
 
 def create_video_collage(video_files, output_filename="collage.mp4"):
-    from moviepy.editor import VideoFileClip, clips_array, ColorClip
+    from moviepy import VideoFileClip, clips_array, ColorClip
 
     n = len(video_files)
     if n == 0:
@@ -59,7 +59,7 @@ def create_video_collage(video_files, output_filename="collage.mp4"):
     min_width = min(clip.w for clip in clips)
     min_height = min(clip.h for clip in clips)
     target_size = (min_width, min_height)
-    clips = [clip.resize(target_size) for clip in clips]
+    clips = [clip.resized(target_size) for clip in clips]
 
     # If grid slots exceed the number of videos, fill the rest with black clips.
     total_slots = rows * cols

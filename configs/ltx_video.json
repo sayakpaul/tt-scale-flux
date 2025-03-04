@@ -13,10 +13,8 @@
         "choice_of_metric": "laion_aesthetic_score"
     },
     "search_args": {
-        "search_method": "zero-order",
-        "search_rounds": 4,
-        "threshold": 0.95,
-        "num_neighbors": 4
+        "search_method": "random",
+        "search_rounds": 4
     },
     "export_args": {"fps": 24}
 }
