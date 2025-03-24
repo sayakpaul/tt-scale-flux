@@ -1,21 +1,20 @@
-import torch
-from diffusers.utils.torch_utils import randn_tensor
-from diffusers import FluxPipeline, LTXPipeline
-import base64
-import re
-import hashlib
-from typing import Dict
-import json
-from typing import Union
-from PIL import Image
-import requests
 import argparse
+import base64
+import hashlib
 import io
-import numpy as np
-import torch.nn.functional as F
+import json
+import re
 from pathlib import Path
-from diffusers.utils import export_to_video
+from typing import Dict, Union
 
+import numpy as np
+import requests
+import torch
+import torch.nn.functional as F
+from diffusers import FluxPipeline, LTXPipeline
+from diffusers.utils import export_to_video
+from diffusers.utils.torch_utils import randn_tensor
+from PIL import Image
 
 TORCH_DTYPE_MAP = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
 MODEL_NAME_MAP = {
@@ -50,7 +49,11 @@ def parse_cli_args():
     parser.add_argument("--prompt", type=str, default=None, help="Use your own prompt.")
     parser.add_argument(
         "--num_prompts",
-        type=lambda x: None if x.lower() == "none" else x if x.lower() == "all" else int(x),
+        type=lambda x: None
+        if x.lower() == "none"
+        else x
+        if x.lower() == "all"
+        else int(x),
         default=2,
         help="Number of prompts to use (or 'all' to use all prompts from file).",
     )
@@ -82,29 +85,29 @@ def validate_args(args):
         config = json.load(f)
 
     config_keys = list(config.keys())
-    assert all(
-        element in config_keys for element in MANDATORY_CONFIG_KEYS
-    ), f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
+    assert all(element in config_keys for element in MANDATORY_CONFIG_KEYS), (
+        f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
+    )
 
     _validate_verifier_args(config)
     _validate_search_args(config)
 
 
 def _validate_verifier_args(config):
-    from verifiers import SUPPORTED_VERIFIERS, SUPPORTED_METRICS
+    from verifiers import SUPPORTED_METRICS, SUPPORTED_VERIFIERS
 
     verifier_args = config["verifier_args"]
     supported_verifiers = list(SUPPORTED_VERIFIERS.keys())
     verifier = verifier_args["name"]
-    assert (
-        verifier in supported_verifiers
-    ), f"Unknown verifier provided: {verifier}, supported ones are: {supported_verifiers}."
+    assert verifier in supported_verifiers, (
+        f"Unknown verifier provided: {verifier}, supported ones are: {supported_verifiers}."
+    )
 
     supported_metrics = SUPPORTED_METRICS[verifier_args["name"]]
     choice_of_metric = verifier_args["choice_of_metric"]
-    assert (
-        choice_of_metric in supported_metrics
-    ), f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
+    assert choice_of_metric in supported_metrics, (
+        f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
+    )
 
 
 def _validate_search_args(config):
@@ -112,9 +115,9 @@ def _validate_search_args(config):
     search_method = search_args["search_method"]
     supported_search_methods = ["random", "zero-order"]
 
-    assert (
-        search_method in supported_search_methods
-    ), f"Unsupported search method provided: {search_method}, supported ones are: {supported_search_methods}."
+    assert search_method in supported_search_methods, (
+        f"Unsupported search method provided: {search_method}, supported ones are: {supported_search_methods}."
+    )
 
 
 # Adapted from Diffusers.
@@ -132,8 +135,12 @@ def prepare_latents_for_flux(
     height = 2 * (int(height) // (vae_scale_factor * 2))
     width = 2 * (int(width) // (vae_scale_factor * 2))
     shape = (batch_size, num_latent_channels, height, width)
-    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
-    latents = FluxPipeline._pack_latents(latents, batch_size, num_latent_channels, height, width)
+    latents = randn_tensor(
+        shape, generator=generator, device=torch.device(device), dtype=dtype
+    )
+    latents = FluxPipeline._pack_latents(
+        latents, batch_size, num_latent_channels, height, width
+    )
     return latents
 
 
@@ -160,8 +167,12 @@ def prepare_latents_ltx(
 
     shape = (batch_size, num_channels_latents, num_frames, height, width)
 
-    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
-    latents = LTXPipeline._pack_latents(latents, transformer_spatial_patch_size, transformer_temporal_patch_size)
+    latents = randn_tensor(
+        shape, generator=generator, device=torch.device(device), dtype=dtype
+    )
+    latents = LTXPipeline._pack_latents(
+        latents, transformer_spatial_patch_size, transformer_temporal_patch_size
+    )
     return latents
 
 
@@ -189,13 +200,20 @@ def prepare_latents_wan(
         int(width) // vae_scale_factor_spatial,
     )
 
-    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
+    latents = randn_tensor(
+        shape, generator=generator, device=torch.device(device), dtype=dtype
+    )
     return latents
 
 
 # Adapted from Diffusers.
 def prepare_latents(
-    batch_size: int, height: int, width: int, generator: torch.Generator, device: str, dtype: torch.dtype
+    batch_size: int,
+    height: int,
+    width: int,
+    generator: torch.Generator,
+    device: str,
+    dtype: torch.dtype,
 ):
     num_channels_latents = 4
     vae_scale_factor = 8
@@ -205,7 +223,9 @@ def prepare_latents(
         int(height) // vae_scale_factor,
         int(width) // vae_scale_factor,
     )
-    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
+    latents = randn_tensor(
+        shape, generator=generator, device=torch.device(device), dtype=dtype
+    )
     return latents
 
 
@@ -256,11 +276,15 @@ def generate_neighbors(x, threshold=0.95, num_neighbors=4):
     """Courtesy: Willis Ma"""
     rng = np.random.Generator(np.random.PCG64())
     x_f = x.flatten(1)
-    x_norm = torch.linalg.norm(x_f, dim=-1, keepdim=True, dtype=torch.float64).unsqueeze(-2)
+    x_norm = torch.linalg.norm(
+        x_f, dim=-1, keepdim=True, dtype=torch.float64
+    ).unsqueeze(-2)
     u = x_f.unsqueeze(-2) / x_norm.clamp_min(1e-12)
-    v = torch.from_numpy(rng.standard_normal(size=(u.shape[0], num_neighbors, u.shape[-1]), dtype=np.float64)).to(
-        u.device
-    )
+    v = torch.from_numpy(
+        rng.standard_normal(
+            size=(u.shape[0], num_neighbors, u.shape[-1]), dtype=np.float64
+        )
+    ).to(u.device)
     w = F.normalize(v - (v @ u.transpose(-2, -1)) * u, dim=-1)
     return (
         (x_norm * (threshold * u + np.sqrt(1 - threshold**2) * w))
@@ -305,7 +329,9 @@ def load_image(path_or_url: Union[str, Image.Image]) -> Image.Image:
     return Image.open(path_or_url)
 
 
-def convert_to_bytes(path_or_url: Union[str, Image.Image], b64_encode: bool = False) -> bytes:
+def convert_to_bytes(
+    path_or_url: Union[str, Image.Image], b64_encode: bool = False
+) -> bytes:
     """Load an image from a path or URL and convert it to bytes."""
     image = load_image(path_or_url).convert("RGB")
     image_bytes_io = io.BytesIO()
@@ -374,7 +400,9 @@ def serialize_artifacts(
             export_to_video(image, filename, fps=kwargs.get("fps", 24))
 
     # Save the best datapoint config as a JSON file.
-    best_json_filename = datapoint["best_img_path"].replace(".png", ".json").replace(".mp4", ".json")
+    best_json_filename = (
+        datapoint["best_img_path"].replace(".png", ".json").replace(".mp4", ".json")
+    )
     with open(best_json_filename, "w") as f:
         # Remove the noise tensor (or any non-serializable object) from the JSON.
         datapoint_copy = datapoint.copy()

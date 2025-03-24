@@ -1,21 +1,21 @@
 try:
     from .gemini_verifier import GeminiVerifier
-except Exception as e:
+except Exception:
     GeminiVerifier = None
 
 try:
     from .openai_verifier import OpenAIVerifier
-except Exception as e:
+except Exception:
     OpenAIVerifier = None
 
 try:
     from .qwen_verifier import QwenVerifier
-except Exception as e:
+except Exception:
     QwenVerifier = None
 
 try:
     from .laion_aesthetics import LAIONAestheticVerifier
-except Exception as e:
+except Exception:
     LAIONAestheticVerifier = None
 
 SUPPORTED_VERIFIERS = {
@@ -25,4 +25,7 @@ SUPPORTED_VERIFIERS = {
     "laion_aesthetic": LAIONAestheticVerifier if LAIONAestheticVerifier else None,
 }
 
-SUPPORTED_METRICS = {k: getattr(v, "SUPPORTED_METRIC_CHOICES", None) for k, v in SUPPORTED_VERIFIERS.items()}
+SUPPORTED_METRICS = {
+    k: getattr(v, "SUPPORTED_METRIC_CHOICES", None)
+    for k, v in SUPPORTED_VERIFIERS.items()
+}

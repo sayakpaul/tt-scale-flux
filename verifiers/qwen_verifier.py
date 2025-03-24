@@ -1,13 +1,14 @@
-from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
-from outlines.models.transformers_vision import transformers_vision
-from pydantic import BaseModel
-import outlines
 import gc
-import torch
-from PIL import Image
-from typing import Union
 import os
 import sys
+from typing import Union
+
+import outlines
+import torch
+from outlines.models.transformers_vision import transformers_vision
+from PIL import Image
+from pydantic import BaseModel
+from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
@@ -116,7 +117,11 @@ class QwenVerifier(BaseVerifier):
         conversation.append(user_content)
         return conversation
 
-    def prepare_inputs(self, images: Union[list[Image.Image], Image.Image], prompts: Union[list[str], str]) -> dict:
+    def prepare_inputs(
+        self,
+        images: Union[list[Image.Image], Image.Image],
+        prompts: Union[list[str], str],
+    ) -> dict:
         assert len(images) == len(prompts)
 
         conversations = []
@@ -125,7 +130,10 @@ class QwenVerifier(BaseVerifier):
 
         assert len(conversations) == len(images) == len(prompts)
 
-        prompts = [self.model.processor.apply_chat_template(msg, add_generation_prompt=True) for msg in conversations]
+        prompts = [
+            self.model.processor.apply_chat_template(msg, add_generation_prompt=True)
+            for msg in conversations
+        ]
         images = [[image] for image in images]
         inputs = {"images": images, "prompts": prompts}
         return inputs
@@ -134,7 +142,10 @@ class QwenVerifier(BaseVerifier):
     def score(self, inputs) -> list[dict[str, float]]:
         # TODO: might need to iterate `inputs` in batches depending on the resources.
         outputs = self.structured_generator(
-            inputs["prompts"], inputs["images"], max_tokens=self.max_new_tokens, seed=self.seed
+            inputs["prompts"],
+            inputs["images"],
+            max_tokens=self.max_new_tokens,
+            seed=self.seed,
         )
         outputs = [o.dict() for o in outputs]
         return outputs

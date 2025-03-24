@@ -1,12 +1,13 @@
-from google import genai
-from google.genai import types
-import typing_extensions as typing
 import json
 import os
 import sys
-from typing import Union
-from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Union
+
+import typing_extensions as typing
+from google import genai
+from google.genai import types
+from PIL import Image
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.abspath(os.path.join(current_dir, ".."))
@@ -55,7 +56,12 @@ class GeminiVerifier(BaseVerifier):
         )
         self.model_name = model_name
 
-    def prepare_inputs(self, images: Union[list[Image.Image], Image.Image], prompts: Union[list[str], str], **kwargs):
+    def prepare_inputs(
+        self,
+        images: Union[list[Image.Image], Image.Image],
+        prompts: Union[list[str], str],
+        **kwargs,
+    ):
         """Prepare inputs for the API from a given prompt and image."""
         inputs = []
         images = images if isinstance(images, list) else [images]
@@ -63,7 +69,9 @@ class GeminiVerifier(BaseVerifier):
         for prompt, image in zip(prompts, images):
             part = [
                 types.Part.from_text(text=prompt),
-                types.Part.from_bytes(data=convert_to_bytes(image), mime_type="image/png"),
+                types.Part.from_bytes(
+                    data=convert_to_bytes(image), mime_type="image/png"
+                ),
             ]
             inputs.extend(part)
 
@@ -84,7 +92,10 @@ class GeminiVerifier(BaseVerifier):
         if max_workers > 4:
             max_workers = 4
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(call_generate_content, group) for group in grouped_inputs]
+            futures = [
+                executor.submit(call_generate_content, group)
+                for group in grouped_inputs
+            ]
             for future in as_completed(futures):
                 try:
                     results.append(future.result())
