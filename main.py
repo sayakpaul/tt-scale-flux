@@ -99,9 +99,7 @@ def sample(
             pipe = pipe.to("cpu")
 
         # Collect the images and corresponding info.
-        for seed, noise, image, filename in zip(
-            seeds_batch, noises_batch, batch_images, filenames_batch
-        ):
+        for seed, noise, image, filename in zip(seeds_batch, noises_batch, batch_images, filenames_batch):
             images_for_prompt.append(image)
             noises_used.append(noise)
             seeds_used.append(seed)
@@ -109,9 +107,7 @@ def sample(
 
     # Prepare verifier inputs and perform inference.
     if isinstance(images_for_prompt[0], Image.Image):
-        verifier_inputs = verifier.prepare_inputs(
-            images=images_for_prompt, prompts=[prompt] * len(images_for_prompt)
-        )
+        verifier_inputs = verifier.prepare_inputs(images=images_for_prompt, prompts=[prompt] * len(images_for_prompt))
     else:
         export_args = config.get("export_args", None) or {}
         if export_args:
@@ -128,11 +124,7 @@ def sample(
             verifier_inputs = []
             for vid_path in temp_vid_paths:
                 frames = prepare_video_frames(vid_path)
-                verifier_inputs.append(
-                    verifier.prepare_inputs(
-                        images=frames, prompts=[prompt] * len(frames)
-                    )
-                )
+                verifier_inputs.append(verifier.prepare_inputs(images=frames, prompts=[prompt] * len(frames)))
 
     print("Scoring with the verifier.")
     outputs = verifier.score(inputs=verifier_inputs)
@@ -160,9 +152,7 @@ def sample(
 
     # Print debug information.
     for ts in topk_scores:
-        print(
-            f"Prompt='{prompt}' | Best seed={ts['seed']} | Score={ts[choice_of_metric]}"
-        )
+        print(f"Prompt='{prompt}' | Best seed={ts['seed']} | Score={ts[choice_of_metric]}")
 
     best_img_path = os.path.join(
         root_dir,
@@ -180,9 +170,7 @@ def sample(
     }
 
     # Check if the neighbors have any improvements (zero-order only).
-    search_method = (
-        search_args.get("search_method", "random") if search_args else "random"
-    )
+    search_method = search_args.get("search_method", "random") if search_args else "random"
     if search_args and search_method == "zero-order":
         first_score = f(results[0])
         neighbors_with_better_score = any(f(item) > first_score for item in results[1:])
@@ -191,15 +179,11 @@ def sample(
     # Serialize.
     if search_method == "zero-order":
         if datapoint["neighbors_improvement"]:
-            serialize_artifacts(
-                images_info, prompt, search_round, root_dir, datapoint, **export_args
-            )
+            serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint, **export_args)
         else:
             print("Skipping serialization as there was no improvement in this round.")
     elif search_method == "random":
-        serialize_artifacts(
-            images_info, prompt, search_round, root_dir, datapoint, **export_args
-        )
+        serialize_artifacts(images_info, prompt, search_round, root_dir, datapoint, **export_args)
 
     return datapoint
 
@@ -254,9 +238,7 @@ def main():
         # As per recommendations from https://huggingface.co/docs/diffusers/main/en/api/pipelines/wan.
         from diffusers import AutoencoderKLWan
 
-        vae = AutoencoderKLWan.from_pretrained(
-            pipeline_name, subfolder="vae", torch_dtype=torch.float32
-        )
+        vae = AutoencoderKLWan.from_pretrained(pipeline_name, subfolder="vae", torch_dtype=torch.float32)
         fp_kwargs.update({"vae": vae})
     pipe = DiffusionPipeline.from_pretrained(**fp_kwargs)
     if not config.get("use_low_gpu_vram", False):
@@ -267,9 +249,7 @@ def main():
     verifier_args = config["verifier_args"]
     verifier_cls = SUPPORTED_VERIFIERS.get(verifier_args["name"])
     if verifier_cls is None:
-        raise ValueError(
-            "Verifier class evaluated to be `None`. Make sure the dependencies are installed properly."
-        )
+        raise ValueError("Verifier class evaluated to be `None`. Make sure the dependencies are installed properly.")
 
     verifier = verifier_cls(**verifier_args)
 
@@ -294,9 +274,7 @@ def main():
             should_regenate_noise = True
             previous_round = search_round - 1
             if previous_round in best_datapoint_per_round:
-                was_improvement = best_datapoint_per_round[previous_round][
-                    "neighbors_improvement"
-                ]
+                was_improvement = best_datapoint_per_round[previous_round]["neighbors_improvement"]
                 if was_improvement:
                     should_regenate_noise = False
 
@@ -306,9 +284,7 @@ def main():
             if should_regenate_noise:
                 # Standard noise sampling.
                 if search_method == "zero-order" and search_round != 1:
-                    print(
-                        "Regenerating base noise because the previous round was rejected."
-                    )
+                    print("Regenerating base noise because the previous round was rejected.")
                 noises = get_noises(
                     max_seed=MAX_SEED,
                     num_samples=num_noises_to_sample,
@@ -318,14 +294,10 @@ def main():
                 )
             else:
                 if best_datapoint_per_round[previous_round]:
-                    if best_datapoint_per_round[previous_round][
-                        "neighbors_improvement"
-                    ]:
+                    if best_datapoint_per_round[previous_round]["neighbors_improvement"]:
                         print("Using the best noise from the previous round.")
                         prev_dp = best_datapoint_per_round[previous_round]
-                        noises = {
-                            int(prev_dp["best_noise_seed"]): prev_dp["best_noise"]
-                        }
+                        noises = {int(prev_dp["best_noise_seed"]): prev_dp["best_noise"]}
 
             if search_method == "zero-order":
                 # Process the noise to generate neighbors.

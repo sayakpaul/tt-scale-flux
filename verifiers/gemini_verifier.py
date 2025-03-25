@@ -69,9 +69,7 @@ class GeminiVerifier(BaseVerifier):
         for prompt, image in zip(prompts, images):
             part = [
                 types.Part.from_text(text=prompt),
-                types.Part.from_bytes(
-                    data=convert_to_bytes(image), mime_type="image/png"
-                ),
+                types.Part.from_bytes(data=convert_to_bytes(image), mime_type="image/png"),
             ]
             inputs.extend(part)
 
@@ -92,10 +90,7 @@ class GeminiVerifier(BaseVerifier):
         if max_workers > 4:
             max_workers = 4
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [
-                executor.submit(call_generate_content, group)
-                for group in grouped_inputs
-            ]
+            futures = [executor.submit(call_generate_content, group) for group in grouped_inputs]
             for future in as_completed(futures):
                 try:
                     results.append(future.result())

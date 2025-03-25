@@ -49,11 +49,7 @@ def parse_cli_args():
     parser.add_argument("--prompt", type=str, default=None, help="Use your own prompt.")
     parser.add_argument(
         "--num_prompts",
-        type=lambda x: None
-        if x.lower() == "none"
-        else x
-        if x.lower() == "all"
-        else int(x),
+        type=lambda x: None if x.lower() == "none" else x if x.lower() == "all" else int(x),
         default=2,
         help="Number of prompts to use (or 'all' to use all prompts from file).",
     )
@@ -135,12 +131,8 @@ def prepare_latents_for_flux(
     height = 2 * (int(height) // (vae_scale_factor * 2))
     width = 2 * (int(width) // (vae_scale_factor * 2))
     shape = (batch_size, num_latent_channels, height, width)
-    latents = randn_tensor(
-        shape, generator=generator, device=torch.device(device), dtype=dtype
-    )
-    latents = FluxPipeline._pack_latents(
-        latents, batch_size, num_latent_channels, height, width
-    )
+    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
+    latents = FluxPipeline._pack_latents(latents, batch_size, num_latent_channels, height, width)
     return latents
 
 
@@ -167,12 +159,8 @@ def prepare_latents_ltx(
 
     shape = (batch_size, num_channels_latents, num_frames, height, width)
 
-    latents = randn_tensor(
-        shape, generator=generator, device=torch.device(device), dtype=dtype
-    )
-    latents = LTXPipeline._pack_latents(
-        latents, transformer_spatial_patch_size, transformer_temporal_patch_size
-    )
+    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
+    latents = LTXPipeline._pack_latents(latents, transformer_spatial_patch_size, transformer_temporal_patch_size)
     return latents
 
 
@@ -200,9 +188,7 @@ def prepare_latents_wan(
         int(width) // vae_scale_factor_spatial,
     )
 
-    latents = randn_tensor(
-        shape, generator=generator, device=torch.device(device), dtype=dtype
-    )
+    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
     return latents
 
 
@@ -223,9 +209,7 @@ def prepare_latents(
         int(height) // vae_scale_factor,
         int(width) // vae_scale_factor,
     )
-    latents = randn_tensor(
-        shape, generator=generator, device=torch.device(device), dtype=dtype
-    )
+    latents = randn_tensor(shape, generator=generator, device=torch.device(device), dtype=dtype)
     return latents
 
 
@@ -276,15 +260,11 @@ def generate_neighbors(x, threshold=0.95, num_neighbors=4):
     """Courtesy: Willis Ma"""
     rng = np.random.Generator(np.random.PCG64())
     x_f = x.flatten(1)
-    x_norm = torch.linalg.norm(
-        x_f, dim=-1, keepdim=True, dtype=torch.float64
-    ).unsqueeze(-2)
+    x_norm = torch.linalg.norm(x_f, dim=-1, keepdim=True, dtype=torch.float64).unsqueeze(-2)
     u = x_f.unsqueeze(-2) / x_norm.clamp_min(1e-12)
-    v = torch.from_numpy(
-        rng.standard_normal(
-            size=(u.shape[0], num_neighbors, u.shape[-1]), dtype=np.float64
-        )
-    ).to(u.device)
+    v = torch.from_numpy(rng.standard_normal(size=(u.shape[0], num_neighbors, u.shape[-1]), dtype=np.float64)).to(
+        u.device
+    )
     w = F.normalize(v - (v @ u.transpose(-2, -1)) * u, dim=-1)
     return (
         (x_norm * (threshold * u + np.sqrt(1 - threshold**2) * w))
@@ -329,9 +309,7 @@ def load_image(path_or_url: Union[str, Image.Image]) -> Image.Image:
     return Image.open(path_or_url)
 
 
-def convert_to_bytes(
-    path_or_url: Union[str, Image.Image], b64_encode: bool = False
-) -> bytes:
+def convert_to_bytes(path_or_url: Union[str, Image.Image], b64_encode: bool = False) -> bytes:
     """Load an image from a path or URL and convert it to bytes."""
     image = load_image(path_or_url).convert("RGB")
     image_bytes_io = io.BytesIO()
@@ -400,9 +378,7 @@ def serialize_artifacts(
             export_to_video(image, filename, fps=kwargs.get("fps", 24))
 
     # Save the best datapoint config as a JSON file.
-    best_json_filename = (
-        datapoint["best_img_path"].replace(".png", ".json").replace(".mp4", ".json")
-    )
+    best_json_filename = datapoint["best_img_path"].replace(".png", ".json").replace(".mp4", ".json")
     with open(best_json_filename, "w") as f:
         # Remove the noise tensor (or any non-serializable object) from the JSON.
         datapoint_copy = datapoint.copy()

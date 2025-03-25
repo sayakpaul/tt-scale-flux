@@ -40,25 +40,17 @@ class LAIONAestheticVerifier(BaseVerifier):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.dtype = kwargs.pop("dtype", torch.float32)
 
-        self.clip = CLIPVisionModelWithProjection.from_pretrained(
-            "openai/clip-vit-large-patch14"
-        ).eval()
+        self.clip = CLIPVisionModelWithProjection.from_pretrained("openai/clip-vit-large-patch14").eval()
         self.clip.to(self.device, self.dtype)
         self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
 
         self.mlp = MLP()
-        path = hf_hub_download(
-            "trl-lib/ddpo-aesthetic-predictor", "aesthetic-model.pth"
-        )
-        state_dict = torch.load(
-            path, weights_only=True, map_location=torch.device("cpu")
-        )
+        path = hf_hub_download("trl-lib/ddpo-aesthetic-predictor", "aesthetic-model.pth")
+        state_dict = torch.load(path, weights_only=True, map_location=torch.device("cpu"))
         self.mlp.load_state_dict(state_dict)
         self.mlp.to(self.device, self.dtype)
 
-    def prepare_inputs(
-        self, images: Union[list[Image.Image], Image.Image], prompts=None, **kwargs
-    ):
+    def prepare_inputs(self, images: Union[list[Image.Image], Image.Image], prompts=None, **kwargs):
         images = images if isinstance(images, list) else [images]
         inputs = self.processor(images=images, return_tensors="pt")
         inputs = inputs.to(device=self.device)
@@ -81,9 +73,7 @@ class LAIONAestheticVerifier(BaseVerifier):
             scores_per_video = []
             for inputs_ in inputs:
                 score_for_video = self._score(inputs_)
-                scores_per_video.append(
-                    {"laion_aesthetic_score": score_for_video.mean().item()}
-                )
+                scores_per_video.append({"laion_aesthetic_score": score_for_video.mean().item()})
             return scores_per_video
         # images
         else:

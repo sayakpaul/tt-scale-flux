@@ -130,10 +130,7 @@ class QwenVerifier(BaseVerifier):
 
         assert len(conversations) == len(images) == len(prompts)
 
-        prompts = [
-            self.model.processor.apply_chat_template(msg, add_generation_prompt=True)
-            for msg in conversations
-        ]
+        prompts = [self.model.processor.apply_chat_template(msg, add_generation_prompt=True) for msg in conversations]
         images = [[image] for image in images]
         inputs = {"images": images, "prompts": prompts}
         return inputs

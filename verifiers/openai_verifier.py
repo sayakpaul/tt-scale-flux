@@ -94,9 +94,7 @@ class OpenAIVerifier(BaseVerifier):
         results = []
         max_workers = min(len(inputs), 4)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [
-                executor.submit(call_generate_content, group) for group in inputs
-            ]
+            futures = [executor.submit(call_generate_content, group) for group in inputs]
             for future in as_completed(futures):
                 try:
                     results.append(future.result())

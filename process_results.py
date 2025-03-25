@@ -12,9 +12,7 @@ from diffusers.utils import make_image_grid  # Assuming this is available
 from PIL import Image, ImageDraw, ImageFont
 
 
-def add_text_to_image(
-    image: Image.Image, text: str, position=(10, 10), color="ivory"
-) -> Image.Image:
+def add_text_to_image(image: Image.Image, text: str, position=(10, 10), color="ivory") -> Image.Image:
     """
     Draws the given text on the image at the specified position.
     """
@@ -69,9 +67,7 @@ def create_video_collage(video_files, output_filename="collage.mp4"):
     if len(clips) < total_slots:
         # Use the minimum duration among the clips to create dummy clips.
         dummy_duration = min(clip.duration for clip in clips)
-        blank_clip = ColorClip(
-            size=target_size, color=(0, 0, 0), duration=dummy_duration
-        )
+        blank_clip = ColorClip(size=target_size, color=(0, 0, 0), duration=dummy_duration)
         clips.extend([blank_clip] * (total_slots - len(clips)))
 
     # Arrange clips into a grid (list of lists) for clips_array.
@@ -131,9 +127,7 @@ def main(args):
     # Process each group separately.
     for prompt, files in groups.items():
         # Sort filenames in the group by the integer value of i i.e., the search.
-        sorted_files = sorted(
-            files, key=lambda fname: int(pattern.search(fname).group(3))
-        )
+        sorted_files = sorted(files, key=lambda fname: int(pattern.search(fname).group(3)))
 
         # Load corresponding PNG images and annotate them with the i value.
         annotated_images = []
@@ -181,8 +175,6 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--path", type=str, help="Path containing the JSON AND image files."
-    )
+    parser.add_argument("--path", type=str, help="Path containing the JSON AND image files.")
     args = parser.parse_args()
     main(args)
