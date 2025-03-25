@@ -6,3 +6,4 @@ outlines
 accelerate
 protobuf
 sentencepiece
+google-genai
