@@ -1,21 +1,20 @@
-import torch
-from diffusers.utils.torch_utils import randn_tensor
-from diffusers import FluxPipeline, LTXPipeline
-import base64
-import re
-import hashlib
-from typing import Dict
-import json
-from typing import Union
-from PIL import Image
-import requests
 import argparse
+import base64
+import hashlib
 import io
-import numpy as np
-import torch.nn.functional as F
+import json
+import re
 from pathlib import Path
-from diffusers.utils import export_to_video
+from typing import Dict, Union
 
+import numpy as np
+import requests
+import torch
+import torch.nn.functional as F
+from diffusers import FluxPipeline, LTXPipeline
+from diffusers.utils import export_to_video
+from diffusers.utils.torch_utils import randn_tensor
+from PIL import Image
 
 TORCH_DTYPE_MAP = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
 MODEL_NAME_MAP = {
@@ -82,29 +81,29 @@ def validate_args(args):
         config = json.load(f)
 
     config_keys = list(config.keys())
-    assert all(
-        element in config_keys for element in MANDATORY_CONFIG_KEYS
-    ), f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
+    assert all(element in config_keys for element in MANDATORY_CONFIG_KEYS), (
+        f"Expected the following keys to be present: {MANDATORY_CONFIG_KEYS} but got: {config_keys}."
+    )
 
     _validate_verifier_args(config)
     _validate_search_args(config)
 
 
 def _validate_verifier_args(config):
-    from verifiers import SUPPORTED_VERIFIERS, SUPPORTED_METRICS
+    from verifiers import SUPPORTED_METRICS, SUPPORTED_VERIFIERS
 
     verifier_args = config["verifier_args"]
     supported_verifiers = list(SUPPORTED_VERIFIERS.keys())
     verifier = verifier_args["name"]
-    assert (
-        verifier in supported_verifiers
-    ), f"Unknown verifier provided: {verifier}, supported ones are: {supported_verifiers}."
+    assert verifier in supported_verifiers, (
+        f"Unknown verifier provided: {verifier}, supported ones are: {supported_verifiers}."
+    )
 
     supported_metrics = SUPPORTED_METRICS[verifier_args["name"]]
     choice_of_metric = verifier_args["choice_of_metric"]
-    assert (
-        choice_of_metric in supported_metrics
-    ), f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
+    assert choice_of_metric in supported_metrics, (
+        f"Unsupported metric provided: {choice_of_metric}, supported ones are: {supported_metrics}."
+    )
 
 
 def _validate_search_args(config):
@@ -112,9 +111,9 @@ def _validate_search_args(config):
     search_method = search_args["search_method"]
     supported_search_methods = ["random", "zero-order"]
 
-    assert (
-        search_method in supported_search_methods
-    ), f"Unsupported search method provided: {search_method}, supported ones are: {supported_search_methods}."
+    assert search_method in supported_search_methods, (
+        f"Unsupported search method provided: {search_method}, supported ones are: {supported_search_methods}."
+    )
 
 
 # Adapted from Diffusers.
@@ -195,7 +194,12 @@ def prepare_latents_wan(
 
 # Adapted from Diffusers.
 def prepare_latents(
-    batch_size: int, height: int, width: int, generator: torch.Generator, device: str, dtype: torch.dtype
+    batch_size: int,
+    height: int,
+    width: int,
+    generator: torch.Generator,
+    device: str,
+    dtype: torch.dtype,
 ):
     num_channels_latents = 4
     vae_scale_factor = 8

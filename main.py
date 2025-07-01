@@ -1,24 +1,25 @@
-import os
 import json
+import os
+import tempfile
 from datetime import datetime
-from PIL import Image
+
 import numpy as np
 import torch
 from diffusers import DiffusionPipeline
-from tqdm.auto import tqdm
-import tempfile
 from diffusers.utils import export_to_video
+from PIL import Image
+from tqdm.auto import tqdm
 
 from utils import (
-    generate_neighbors,
-    prompt_to_filename,
-    get_noises,
-    TORCH_DTYPE_MAP,
-    get_latent_prep_fn,
-    parse_cli_args,
-    serialize_artifacts,
     MODEL_NAME_MAP,
+    TORCH_DTYPE_MAP,
+    generate_neighbors,
+    get_latent_prep_fn,
+    get_noises,
+    parse_cli_args,
     prepare_video_frames,
+    prompt_to_filename,
+    serialize_artifacts,
 )
 from verifiers import SUPPORTED_VERIFIERS
 
@@ -69,7 +70,10 @@ def sample(
         batch = noise_items[i : i + batch_size_for_img_gen]
         seeds_batch, noises_batch = zip(*batch)
         filenames_batch = [
-            os.path.join(root_dir, f"{prompt_filename}_i@{search_round}_s@{seed}.{extension_to_use}")
+            os.path.join(
+                root_dir,
+                f"{prompt_filename}_i@{search_round}_s@{seed}.{extension_to_use}",
+            )
             for seed in seeds_batch
         ]
 
@@ -81,7 +85,11 @@ def sample(
         batched_prompts = [prompt] * len(noises_batch)
         batched_latents = torch.stack(noises_batch).squeeze(dim=1)
 
-        batch_result = pipe(prompt=batched_prompts, latents=batched_latents, **config["pipeline_call_args"])
+        batch_result = pipe(
+            prompt=batched_prompts,
+            latents=batched_latents,
+            **config["pipeline_call_args"],
+        )
         if hasattr(batch_result, "images"):
             batch_images = batch_result.images
         elif hasattr(batch_result, "frames"):
@@ -123,9 +131,9 @@ def sample(
     for o in outputs:
         assert choice_of_metric in o, o.keys()
 
-    assert (
-        len(outputs) == len(images_for_prompt)
-    ), f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
+    assert len(outputs) == len(images_for_prompt), (
+        f"Expected len(outputs) to be same as len(images_for_prompt) but got {len(outputs)=} & {len(images_for_prompt)=}"
+    )
 
     results = []
     for json_dict, seed_val, noise in zip(outputs, seeds_used, noises_used):
@@ -147,7 +155,8 @@ def sample(
         print(f"Prompt='{prompt}' | Best seed={ts['seed']} | Score={ts[choice_of_metric]}")
 
     best_img_path = os.path.join(
-        root_dir, f"{prompt_filename}_i@{search_round}_s@{topk_scores[0]['seed']}.{extension_to_use}"
+        root_dir,
+        f"{prompt_filename}_i@{search_round}_s@{topk_scores[0]['seed']}.{extension_to_use}",
     )
     datapoint = {
         "prompt": prompt,
@@ -221,7 +230,10 @@ def main():
 
     # === Set up the image-generation pipeline ===
     torch_dtype = TORCH_DTYPE_MAP[config.pop("torch_dtype")]
-    fp_kwargs = {"pretrained_model_name_or_path": pipeline_name, "torch_dtype": torch_dtype}
+    fp_kwargs = {
+        "pretrained_model_name_or_path": pipeline_name,
+        "torch_dtype": torch_dtype,
+    }
     if "Wan" in pipeline_name:
         # As per recommendations from https://huggingface.co/docs/diffusers/main/en/api/pipelines/wan.
         from diffusers import AutoencoderKLWan
@@ -291,7 +303,9 @@ def main():
                 # Process the noise to generate neighbors.
                 base_seed, base_noise = next(iter(noises.items()))
                 neighbors = generate_neighbors(
-                    base_noise, threshold=search_args["threshold"], num_neighbors=search_args["num_neighbors"]
+                    base_noise,
+                    threshold=search_args["threshold"],
+                    num_neighbors=search_args["num_neighbors"],
                 ).squeeze(0)
                 # Concatenate the base noise with its neighbors.
                 neighbors_and_noise = torch.cat([base_noise, neighbors], dim=0)
