@@ -78,16 +78,20 @@ class OpenAIVerifier(BaseVerifier):
             )
             return response.choices[0].message.parsed.model_dump()
 
-        results = []
+        results = [None] * len(inputs)
         max_workers = min(len(inputs), 4)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(call_generate_content, group) for group in inputs]
-            for future in as_completed(futures):
+            future_to_idx = {
+                executor.submit(call_generate_content, group): idx
+                for idx, group in enumerate(inputs)
+            }
+            for future in as_completed(future_to_idx):
+                idx = future_to_idx[future]
                 try:
-                    results.append(future.result())
+                    results[idx] = future.result()
                 except Exception as e:
                     # Handle exceptions as appropriate.
-                    print(f"An error occurred during API call: {e}")
+                    print(f"Error on input #{idx}: {e}")
         return results
 
 
