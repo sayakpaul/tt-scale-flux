@@ -1,10 +1,11 @@
-import torch
-import torch.nn as nn
-from transformers import CLIPVisionModelWithProjection, CLIPProcessor
-from huggingface_hub import hf_hub_download
 import os
 from typing import Union
+
+import torch
+import torch.nn as nn
+from huggingface_hub import hf_hub_download
 from PIL import Image
+from transformers import CLIPProcessor, CLIPVisionModelWithProjection
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 

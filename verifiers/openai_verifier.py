@@ -1,11 +1,12 @@
-from openai import OpenAI
-from pydantic import BaseModel
-import os
-from typing import Union
-from PIL import Image
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Union
+
+from openai import OpenAI
+from PIL import Image
+from pydantic import BaseModel
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.abspath(os.path.join(current_dir, ".."))
@@ -14,6 +15,7 @@ sys.path.insert(0, current_dir)
 sys.path.insert(0, root_dir)
 
 from base_verifier import BaseVerifier
+
 from utils import convert_to_bytes
 
 
@@ -47,7 +49,12 @@ class OpenAIVerifier(BaseVerifier):
         self.model_name = model_name
         self.seed = seed
 
-    def prepare_inputs(self, images: Union[list[Image.Image], Image.Image], prompts: Union[list[str], str], **kwargs):
+    def prepare_inputs(
+        self,
+        images: Union[list[Image.Image], Image.Image],
+        prompts: Union[list[str], str],
+        **kwargs,
+    ):
         """Prepare inputs for the API from a given prompt and image."""
         inputs = []
         images = images if isinstance(images, list) else [images]
@@ -61,7 +68,10 @@ class OpenAIVerifier(BaseVerifier):
                 "role": "user",
                 "content": [
                     {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                    },
                 ],
             }
             inputs.append(message)
@@ -74,7 +84,10 @@ class OpenAIVerifier(BaseVerifier):
         def call_generate_content(parts):
             conversation = [system_message, parts]
             response = self.client.beta.chat.completions.parse(
-                model=self.model_name, messages=conversation, temperature=1, response_format=Grading
+                model=self.model_name,
+                messages=conversation,
+                temperature=1,
+                response_format=Grading,
             )
             return response.choices[0].message.parsed.model_dump()
 

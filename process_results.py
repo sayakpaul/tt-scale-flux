@@ -2,13 +2,14 @@
 Thanks ChatGPT for pairing.
 """
 
-import glob
 import argparse
-import re
+import glob
 import math
 import os
-from PIL import Image, ImageDraw, ImageFont
+import re
+
 from diffusers.utils import make_image_grid  # Assuming this is available
+from PIL import Image, ImageDraw, ImageFont
 
 
 def add_text_to_image(image: Image.Image, text: str, position=(10, 10), color="ivory") -> Image.Image:
@@ -42,7 +43,7 @@ def compute_grid(n):
 
 
 def create_video_collage(video_files, output_filename="collage.mp4"):
-    from moviepy import VideoFileClip, clips_array, ColorClip
+    from moviepy import ColorClip, VideoFileClip, clips_array
 
     n = len(video_files)
     if n == 0:

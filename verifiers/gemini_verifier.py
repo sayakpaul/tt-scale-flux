@@ -1,12 +1,13 @@
-from google import genai
-from google.genai import types
-import typing_extensions as typing
 import json
 import os
 import sys
-from typing import Union
-from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Union
+
+import typing_extensions as typing
+from google import genai
+from google.genai import types
+from PIL import Image
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.abspath(os.path.join(current_dir, ".."))
@@ -55,7 +56,12 @@ class GeminiVerifier(BaseVerifier):
         )
         self.model_name = model_name
 
-    def prepare_inputs(self, images: Union[list[Image.Image], Image.Image], prompts: Union[list[str], str], **kwargs):
+    def prepare_inputs(
+        self,
+        images: Union[list[Image.Image], Image.Image],
+        prompts: Union[list[str], str],
+        **kwargs,
+    ):
         """Prepare inputs for the API from a given prompt and image."""
         inputs = []
         images = images if isinstance(images, list) else [images]
